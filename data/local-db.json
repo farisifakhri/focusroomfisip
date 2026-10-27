@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": "admin-1",
+      "nim": "ADMIN_FISIP",
+      "name": "Petugas Verifikator FISIP",
+      "role": "ADMIN",
+      "createdAt": "2026-10-27T03:35:52.705Z"
+    },
+    {
+      "id": "mhs-1",
+      "nim": "11220910000001",
+      "name": "Ahmad Fauzi",
+      "role": "MAHASISWA",
+      "createdAt": "2026-10-27T03:35:52.705Z"
+    }
+  ],
+  "rooms": [
+    {
+      "id": "room-1",
+      "name": "Focus Room 1 (Lt. 2)",
+      "capacity": 6,
+      "description": "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
+      "isActive": true
+    },
+    {
+      "id": "room-2",
+      "name": "Focus Room 2 (Lt. 2)",
+      "capacity": 6,
+      "description": "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
+      "isActive": true
+    },
+    {
+      "id": "room-3",
+      "name": "Focus Room 3 (Lt. 3)",
+      "capacity": 4,
+      "description": "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk bimbingan/diskusi intensif.",
+      "isActive": true
+    },
+    {
+      "id": "room-4",
+      "name": "Focus Room 4 (Lt. 3)",
+      "capacity": 4,
+      "description": "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk riset & persiapan sidang.",
+      "isActive": true
+    }
+  ],
+  "bookings": []
+}

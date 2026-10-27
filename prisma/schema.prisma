@@ -1,0 +1,55 @@
+// Prisma Schema for Focus Room FISIP UIN Jakarta
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  MAHASISWA
+  ADMIN
+}
+
+enum BookingStatus {
+  ACTIVE
+  USED
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id        String    @id @default(uuid())
+  nim       String    @unique
+  name      String
+  role      Role      @default(MAHASISWA)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model Room {
+  id          String    @id @default(uuid())
+  name        String    // e.g. "Focus Room 1", "Focus Room 2", etc.
+  capacity    Int       // e.g. 4-6 orang
+  description String?   // Fasilitas (AC, Smart TV, Whiteboard, Port Charger)
+  isActive    Boolean   @default(true)
+  bookings    Booking[]
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  roomId      String
+  room        Room          @relation(fields: [roomId], references: [id])
+  startTime   DateTime
+  endTime     DateTime
+  qrCode      String        @unique // Secret token / base code for dynamic QR validation
+  status      BookingStatus @default(ACTIVE)
+  notes       String?       // Keperluan (Diskusi Skripsi, Riset, dll)
+  checkedInAt DateTime?     // Waktu verifikasi oleh admin
+  createdAt   DateTime      @default(now())
+}

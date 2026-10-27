@@ -79,15 +79,25 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
 
   // Filter Bookings
   const filteredBookings = allBookings.filter((b) => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
+    const responsibleName = (b.responsibleName || b.user?.name || "").toLowerCase();
+    const identifier = (b.identifier || b.user?.nim || "").toLowerCase();
+    const email = (b.email || b.user?.email || "").toLowerCase();
+    const phone = b.phone || b.user?.phone || "";
+    const prodi = (b.prodi || b.user?.prodi || "").toLowerCase();
+    const purpose = (b.purpose || "").toLowerCase();
+    const roomName = (b.room?.name || "").toLowerCase();
+
     const matchesSearch =
-      b.responsibleName.toLowerCase().includes(q) ||
-      b.identifier.toLowerCase().includes(q) ||
-      b.email.toLowerCase().includes(q) ||
-      b.phone.includes(q) ||
-      b.prodi.toLowerCase().includes(q) ||
-      b.purpose.toLowerCase().includes(q) ||
-      (b.room?.name || "").toLowerCase().includes(q);
+      !q ||
+      responsibleName.includes(q) ||
+      identifier.includes(q) ||
+      email.includes(q) ||
+      phone.includes(q) ||
+      prodi.includes(q) ||
+      purpose.includes(q) ||
+      roomName.includes(q);
 
     const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
     const matchesRoom = roomFilter === "ALL" || b.roomId === roomFilter;
@@ -124,13 +134,13 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
         `"${dateStr}"`,
         `"${timeStr}"`,
         `"${b.room?.name || "-"}"`,
-        `"${b.responsibleName}"`,
-        `"${b.identifier}"`,
-        `"${b.email}"`,
-        `"${b.phone}"`,
-        `"${b.prodi}"`,
-        `"${b.purpose.replace(/"/g, '""')}"`,
-        b.userCount,
+        `"${b.responsibleName || b.user?.name || "-"}"`,
+        `"${b.identifier || b.user?.nim || "-"}"`,
+        `"${b.email || b.user?.email || "-"}"`,
+        `"${b.phone || b.user?.phone || "-"}"`,
+        `"${b.prodi || b.user?.prodi || "-"}"`,
+        `"${(b.purpose || "-").replace(/"/g, '""')}"`,
+        b.userCount || 1,
         `"${b.status}"`,
         `"${b.checkedInAt ? new Date(b.checkedInAt).toLocaleString("id-ID") : "-"}"`,
       ];
@@ -350,7 +360,7 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
 
                         {/* Nama Penanggung Jawab */}
                         <td className="py-3 px-3 font-bold text-stone-900">
-                          {b.responsibleName}
+                          {b.responsibleName || b.user?.name || "Penanggung Jawab"}
                           <span className="block text-[10px] text-stone-400 uppercase font-normal">
                             {b.userType === "DOSEN_PEGAWAI" ? "Dosen/Pegawai" : "Mahasiswa"}
                           </span>
@@ -358,26 +368,26 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
 
                         {/* NIM / NIP */}
                         <td className="py-3 px-3 font-mono text-stone-800 font-semibold whitespace-nowrap">
-                          {b.identifier}
+                          {b.identifier || b.user?.nim || "-"}
                         </td>
 
                         {/* Kontak */}
                         <td className="py-3 px-3">
-                          <div className="text-stone-800">{b.email}</div>
-                          <div className="font-mono text-stone-500 text-[11px]">{b.phone}</div>
+                          <div className="text-stone-800">{b.email || b.user?.email || "-"}</div>
+                          <div className="font-mono text-stone-500 text-[11px]">{b.phone || b.user?.phone || "-"}</div>
                         </td>
 
                         {/* Prodi */}
-                        <td className="py-3 px-3 text-stone-800 font-medium whitespace-nowrap">{b.prodi}</td>
+                        <td className="py-3 px-3 text-stone-800 font-medium whitespace-nowrap">{b.prodi || b.user?.prodi || "FISIP"}</td>
 
                         {/* Jumlah Pengguna */}
                         <td className="py-3 px-3 font-bold text-stone-900 whitespace-nowrap">
-                          {b.userCount} Orang
+                          {b.userCount || 1} Orang
                         </td>
 
                         {/* Keperluan */}
-                        <td className="py-3 px-3 text-stone-700 max-w-[180px] truncate" title={b.purpose}>
-                          {b.purpose}
+                        <td className="py-3 px-3 text-stone-700 max-w-[180px] truncate" title={b.purpose || "-"}>
+                          {b.purpose || "-"}
                         </td>
 
                         {/* Status Presensi */}

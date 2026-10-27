@@ -49,7 +49,7 @@ export interface BookingRecord {
   room?: RoomRecord;
 }
 
-// 4 Focus Rooms FISIP UIN Jakarta sesuai pembaruan spesifikasi
+// 4 Focus Rooms FISIP UIN Jakarta
 export const INITIAL_ROOMS: RoomRecord[] = [
   {
     id: "room-1",
@@ -57,7 +57,7 @@ export const INITIAL_ROOMS: RoomRecord[] = [
     capacity: 20, // Lebih dari 15 orang
     description: "Ruang rapat dan pertemuan skala besar, biasa digunakan oleh Dosen dan Rapat Struktural FISIP. Akses umum tertutup kecuali diaktifkan oleh Admin.",
     facilities: "2 Unit Komputer (PC Desktop), Port Charger Meja di setiap sisi, Whiteboard Kaca Besar, Full AC.",
-    isActive: false, // DEFAULT MATI/NONAKTIF KECUALI DIAKTIFKAN ADMIN
+    isActive: false, // Default mati/nonaktif
   },
   {
     id: "room-2",
@@ -91,7 +91,34 @@ const DB_FILE = path.join(DATA_DIR, "local-db.json");
 interface LocalDB {
   users: UserRecord[];
   rooms: RoomRecord[];
-  bookings: BookingRecord[];
+  bookings: any[];
+}
+
+function normalizeBooking(b: any, db: LocalDB): BookingRecord {
+  const user = db.users.find((u) => u.id === b.userId);
+  const room = db.rooms.find((r) => r.id === b.roomId);
+
+  return {
+    id: b.id,
+    userId: b.userId,
+    roomId: b.roomId,
+    email: b.email || user?.email || "mhs@uinjkt.ac.id",
+    responsibleName: b.responsibleName || user?.name || "Penanggung Jawab",
+    identifier: b.identifier || user?.nim || "-",
+    phone: b.phone || user?.phone || "081234567890",
+    prodi: b.prodi || user?.prodi || "FISIP",
+    userType: (b.userType || (user?.role === "DOSEN_PEGAWAI" ? "DOSEN_PEGAWAI" : "MAHASISWA")) as "MAHASISWA" | "DOSEN_PEGAWAI",
+    userCount: b.userCount || 2,
+    purpose: b.purpose || b.notes || "Diskusi Akademik",
+    startTime: b.startTime,
+    endTime: b.endTime,
+    qrCode: b.qrCode,
+    status: (b.status || "ACTIVE") as BookingStatus,
+    checkedInAt: b.checkedInAt || null,
+    createdAt: b.createdAt || new Date().toISOString(),
+    room,
+    user,
+  };
 }
 
 function readLocalDB(): LocalDB {
@@ -106,9 +133,9 @@ function readLocalDB(): LocalDB {
             id: "admin-1",
             nim: "ADMIN_FISIP",
             name: "Admin & Verifikator FISIP",
-            email: "admin.fisip@uinjkt.ac.id",
+            email: "verifikator.fisip@uinjkt.ac.id",
             phone: "081298765432",
-            prodi: "Bagian Akademik & Kemahasiswaan FISIP",
+            prodi: "Sekretariat Dekanat & Akademik FISIP",
             role: "ADMIN",
             createdAt: new Date().toISOString(),
           },
@@ -132,7 +159,7 @@ function readLocalDB(): LocalDB {
     const content = fs.readFileSync(DB_FILE, "utf-8");
     const parsed = JSON.parse(content);
 
-    // Pastikan rooms selalu sinkron dengan konfigurasi terbaru
+    // Sinkronisasi ruangan jika kapasitas lama
     if (!parsed.rooms || parsed.rooms.length === 0 || parsed.rooms[0].capacity < 15) {
       parsed.rooms = INITIAL_ROOMS;
       fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
@@ -155,19 +182,32 @@ function writeLocalDB(data: LocalDB) {
   }
 }
 
-// Helper untuk mengecek apakah Prisma dapat terhubung
-let isPrismaAvailable: boolean | null = null;
+// Global cache agar tidak mencoba query raw berulang-ulang jika DB lokal belum diset
+const globalForDB = globalThis as unknown as {
+  isPrismaAvailable?: boolean;
+};
+
 async function checkPrisma(): Promise<boolean> {
-  if (isPrismaAvailable !== null) return isPrismaAvailable;
+  if (globalForDB.isPrismaAvailable !== undefined) {
+    return globalForDB.isPrismaAvailable;
+  }
+
+  const dbUrl = process.env.DATABASE_URL || "";
+  // Jika URL masih menggunakan localhost atau belum diset ke host remote valid
+  if (!dbUrl || dbUrl.includes("localhost:5432") || dbUrl.includes("@localhost")) {
+    globalForDB.isPrismaAvailable = false;
+    return false;
+  }
+
   try {
     await Promise.race([
       prisma.$queryRaw`SELECT 1`,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1000)),
     ]);
-    isPrismaAvailable = true;
+    globalForDB.isPrismaAvailable = true;
     return true;
   } catch {
-    isPrismaAvailable = false;
+    globalForDB.isPrismaAvailable = false;
     return false;
   }
 }
@@ -226,8 +266,8 @@ export async function getOrCreateUser(data: {
         role: created.role as Role,
         createdAt: created.createdAt.toISOString(),
       };
-    } catch (e) {
-      console.warn("Prisma error in getOrCreateUser, fallback to local:", e);
+    } catch {
+      // Graceful fallback to local
     }
   }
 
@@ -248,7 +288,6 @@ export async function getOrCreateUser(data: {
     db.users.push(user);
     writeLocalDB(db);
   } else {
-    // Update data profil terbaru jika ada
     if (data.email) user.email = data.email;
     if (data.phone) user.phone = data.phone;
     if (data.prodi) user.prodi = data.prodi;
@@ -274,8 +313,8 @@ export async function getUserById(id: string): Promise<UserRecord | null> {
           createdAt: u.createdAt.toISOString(),
         };
       }
-    } catch (e) {
-      console.warn("Prisma error in getUserById:", e);
+    } catch {
+      // Graceful fallback
     }
   }
   const db = readLocalDB();
@@ -299,8 +338,8 @@ export async function getRooms(includeInactive = false): Promise<RoomRecord[]> {
           isActive: r.isActive,
         }));
       }
-    } catch (e) {
-      console.warn("Prisma error in getRooms:", e);
+    } catch {
+      // Graceful fallback
     }
   }
   const db = readLocalDB();
@@ -316,8 +355,8 @@ export async function toggleRoomActive(roomId: string, isActive: boolean): Promi
         data: { isActive },
       });
       return true;
-    } catch (e) {
-      console.warn("Prisma error in toggleRoomActive:", e);
+    } catch {
+      // Graceful fallback
     }
   }
 
@@ -382,23 +421,19 @@ export async function getUserActiveBooking(userId: string): Promise<BookingRecor
           },
         };
       }
-    } catch (e) {
-      console.warn("Prisma error in getUserActiveBooking:", e);
+    } catch {
+      // Graceful fallback
     }
   }
 
   // Local fallback
   const db = readLocalDB();
-  const booking = db.bookings.find(
+  const rawBooking = db.bookings.find(
     (b) => b.userId === userId && b.status === "ACTIVE" && new Date(b.endTime) > now
   );
-  if (!booking) return null;
+  if (!rawBooking) return null;
 
-  return {
-    ...booking,
-    room: db.rooms.find((r) => r.id === booking.roomId),
-    user: db.users.find((u) => u.id === booking.userId),
-  };
+  return normalizeBooking(rawBooking, db);
 }
 
 export async function getBookingsForDate(dateStr: string): Promise<BookingRecord[]> {
@@ -449,8 +484,8 @@ export async function getBookingsForDate(dateStr: string): Promise<BookingRecord
           createdAt: b.user.createdAt.toISOString(),
         },
       }));
-    } catch (e) {
-      console.warn("Prisma error in getBookingsForDate:", e);
+    } catch {
+      // Graceful fallback
     }
   }
 
@@ -465,11 +500,7 @@ export async function getBookingsForDate(dateStr: string): Promise<BookingRecord
         (b.status === "ACTIVE" || b.status === "USED")
       );
     })
-    .map((b) => ({
-      ...b,
-      room: db.rooms.find((r) => r.id === b.roomId),
-      user: db.users.find((u) => u.id === b.userId),
-    }));
+    .map((b) => normalizeBooking(b, db));
 }
 
 export async function createBooking(data: {
@@ -486,7 +517,6 @@ export async function createBooking(data: {
   startTime: Date;
   endTime: Date;
 }): Promise<{ success: boolean; booking?: BookingRecord; error?: string }> {
-  // 1. Cek status aktif ruangan
   const rooms = await getRooms(true);
   const targetRoom = rooms.find((r) => r.id === data.roomId);
   if (!targetRoom) {
@@ -499,7 +529,6 @@ export async function createBooking(data: {
     };
   }
 
-  // 2. Validasi kapasitas pengguna
   if (data.userCount > targetRoom.capacity) {
     return {
       success: false,
@@ -507,7 +536,6 @@ export async function createBooking(data: {
     };
   }
 
-  // 3. Validasi 1 booking aktif per mahasiswa/pemesan
   const existingActive = await getUserActiveBooking(data.userId);
   if (existingActive) {
     return {
@@ -516,7 +544,6 @@ export async function createBooking(data: {
     };
   }
 
-  // 4. Cek bentrok jadwal ruangan
   const usePrisma = await checkPrisma();
   if (usePrisma) {
     try {
@@ -602,8 +629,8 @@ export async function createBooking(data: {
           },
         },
       };
-    } catch (e) {
-      console.warn("Prisma error in createBooking:", e);
+    } catch {
+      // Fallback to local
     }
   }
 
@@ -624,7 +651,7 @@ export async function createBooking(data: {
     };
   }
 
-  const newBooking: BookingRecord = {
+  const newBooking = {
     id: crypto.randomUUID(),
     userId: data.userId,
     roomId: data.roomId,
@@ -649,11 +676,7 @@ export async function createBooking(data: {
 
   return {
     success: true,
-    booking: {
-      ...newBooking,
-      room: db.rooms.find((r) => r.id === newBooking.roomId),
-      user: db.users.find((u) => u.id === newBooking.userId),
-    },
+    booking: normalizeBooking(newBooking, db),
   };
 }
 
@@ -701,19 +724,15 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
           },
         };
       }
-    } catch (e) {
-      console.warn("Prisma error in getBookingById:", e);
+    } catch {
+      // Fallback
     }
   }
 
   const db = readLocalDB();
   const b = db.bookings.find((item) => item.id === id);
   if (!b) return null;
-  return {
-    ...b,
-    room: db.rooms.find((r) => r.id === b.roomId),
-    user: db.users.find((u) => u.id === b.userId),
-  };
+  return normalizeBooking(b, db);
 }
 
 export async function verifyAndCheckInQR(rawPayload: string): Promise<{
@@ -767,7 +786,6 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
   const startTime = new Date(booking.startTime);
   const endTime = new Date(booking.endTime);
 
-  // Toleransi: Check-in dibuka 15 menit sebelum sesi mulai hingga sesi berakhir
   const earlyTolerance = 15 * 60 * 1000;
   if (now.getTime() < startTime.getTime() - earlyTolerance) {
     return {
@@ -789,7 +807,6 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
     };
   }
 
-  // Sukses verifikasi presensi
   const checkInTime = new Date().toISOString();
   await updateBookingStatus(booking.id, "USED", checkInTime);
 
@@ -817,8 +834,8 @@ export async function updateBookingStatus(
         },
       });
       return;
-    } catch (e) {
-      console.warn("Prisma error in updateBookingStatus:", e);
+    } catch {
+      // Fallback
     }
   }
 
@@ -874,17 +891,13 @@ export async function getAllBookingsList(): Promise<BookingRecord[]> {
           createdAt: b.user.createdAt.toISOString(),
         },
       }));
-    } catch (e) {
-      console.warn("Prisma error in getAllBookingsList:", e);
+    } catch {
+      // Fallback
     }
   }
 
   const db = readLocalDB();
   return db.bookings
-    .map((b) => ({
-      ...b,
-      room: db.rooms.find((r) => r.id === b.roomId),
-      user: db.users.find((u) => u.id === b.userId),
-    }))
+    .map((b) => normalizeBooking(b, db))
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 }

@@ -72,3 +72,4 @@ export function verifyDynamicQRPayload(rawPayload: string): {
 
   return { valid: true, bookingId };
 }
+

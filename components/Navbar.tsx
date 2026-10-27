@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/navigation";
-import { usePathname } from "next/navigation";
 import NextLink from "next/link";
-import { Shield, User, LogOut, Calendar, QrCode, Home, Building2 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { User, LogOut, Calendar, QrCode, Building, ShieldCheck } from "lucide-react";
 import { logoutUser } from "@/actions/auth";
 
 interface NavbarProps {
@@ -11,92 +10,126 @@ interface NavbarProps {
     id: string;
     nim: string;
     name: string;
-    role: "MAHASISWA" | "ADMIN";
+    role: "MAHASISWA" | "DOSEN_PEGAWAI" | "ADMIN";
   } | null;
 }
 
 export default function Navbar({ user }: NavbarProps) {
   const pathname = usePathname();
 
+  // Jika sedang di rute /admin atau /admin/login, kita jangan tampilkan navbar mahasiswa standar
+  const isAdminRoute = pathname.startsWith("/admin");
+
+  if (isAdminRoute) {
+    return (
+      <header className="bg-fisip-950 border-b border-fisip-800 text-white sticky top-0 z-50 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <NextLink href="/admin" className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-fisip-700 border border-fisip-600 flex items-center justify-center font-bold text-white shadow-inner">
+              <ShieldCheck className="w-5 h-5 text-amber-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold tracking-wider text-white text-sm">PORTAL VERIFIKATOR</span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded border border-amber-400/30 uppercase">
+                  Admin FISIP
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-300">Fakultas Ilmu Sosial dan Ilmu Politik UIN Jakarta</p>
+            </div>
+          </NextLink>
+
+          <div className="flex items-center gap-3">
+            <NextLink
+              href="/"
+              className="text-xs text-stone-300 hover:text-white px-3 py-1.5 rounded-lg border border-fisip-800 hover:bg-fisip-900 transition-colors"
+            >
+              Lihat Portal Pemesan
+            </NextLink>
+
+            {user?.role === "ADMIN" && (
+              <form action={() => logoutUser("/admin/login")}>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fisip-800 hover:bg-fisip-700 text-stone-200 hover:text-white text-xs font-medium border border-fisip-700 transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Keluar Admin
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
-    <header className="sticky top-0 z-50 bg-emerald-950/95 backdrop-blur-md border-b border-emerald-800 text-white">
+    <header className="bg-fisip-900 border-b border-fisip-800 text-white sticky top-0 z-50 shadow-md">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand */}
         <NextLink href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-bold text-white shadow-md group-hover:scale-105 transition-transform">
-            <Building2 className="w-6 h-6 text-emerald-950" />
+          <div className="w-10 h-10 rounded-xl bg-fisip-800 border border-fisip-700 flex items-center justify-center text-white shadow-sm group-hover:bg-fisip-700 transition-colors">
+            <Building className="w-5 h-5 text-amber-300" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-white text-base">FOCUS ROOM</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-1.5 py-0.5 rounded border border-emerald-400/30">
-                FISIP UIN
+            <div className="flex items-center gap-2">
+              <span className="font-black tracking-tight text-white text-base">FOCUS ROOM</span>
+              <span className="text-[10px] bg-white/10 text-amber-200 font-bold px-1.5 py-0.5 rounded border border-white/20">
+                FISIP
               </span>
             </div>
-            <p className="text-[11px] text-emerald-300/80 -mt-0.5">UIN Syarif Hidayatullah Jakarta</p>
+            <p className="text-[11px] text-stone-300 leading-none mt-0.5">UIN Syarif Hidayatullah Jakarta</p>
           </div>
         </NextLink>
 
         {/* Desktop Nav Links */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1.5">
           <NextLink
             href="/"
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              pathname === "/" ? "bg-emerald-800 text-white" : "text-emerald-200 hover:text-white hover:bg-emerald-900/60"
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-colors ${
+              pathname === "/" ? "bg-fisip-800 text-amber-200 shadow-inner" : "text-stone-200 hover:text-white hover:bg-fisip-800/60"
             }`}
           >
-            Ruangan
+            Katalog Ruang
           </NextLink>
           <NextLink
             href="/booking"
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-colors ${
               pathname === "/booking"
-                ? "bg-emerald-800 text-white"
-                : "text-emerald-200 hover:text-white hover:bg-emerald-900/60"
+                ? "bg-fisip-800 text-amber-200 shadow-inner"
+                : "text-stone-200 hover:text-white hover:bg-fisip-800/60"
             }`}
           >
-            Pesan Slot
+            Formulir Peminjaman
           </NextLink>
           <NextLink
             href="/ticket"
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-colors ${
               pathname === "/ticket"
-                ? "bg-emerald-800 text-white"
-                : "text-emerald-200 hover:text-white hover:bg-emerald-900/60"
+                ? "bg-fisip-800 text-amber-200 shadow-inner"
+                : "text-stone-200 hover:text-white hover:bg-fisip-800/60"
             }`}
           >
-            Tiket Saya
+            E-Tiket Presensi
           </NextLink>
-          {user?.role === "ADMIN" && (
-            <NextLink
-              href="/admin"
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
-                pathname.startsWith("/admin")
-                  ? "bg-emerald-500 text-emerald-950 font-bold"
-                  : "text-emerald-300 hover:text-white hover:bg-emerald-800"
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              Panel Verifikator
-            </NextLink>
-          )}
         </nav>
 
-        {/* User / Auth */}
-        <div className="flex items-center gap-2">
+        {/* User Info / Auth */}
+        <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-semibold text-white leading-tight">{user.name}</span>
-                <span className="text-[10px] text-emerald-300/80 font-mono">
-                  {user.role === "ADMIN" ? "Petugas Verifikator" : `NIM: ${user.nim}`}
+                <span className="text-xs font-bold text-white">{user.name}</span>
+                <span className="text-[10px] text-amber-200/90 font-mono">
+                  {user.role === "DOSEN_PEGAWAI" ? `NIP/NIDN: ${user.nim}` : `NIM: ${user.nim}`}
                 </span>
               </div>
-              <form action={logoutUser}>
+              <form action={() => logoutUser("/login")}>
                 <button
                   type="submit"
                   title="Keluar"
-                  className="p-2 text-emerald-300 hover:text-white hover:bg-emerald-900/80 rounded-xl transition-colors"
+                  className="p-2 text-stone-300 hover:text-white hover:bg-fisip-800 rounded-xl transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -105,47 +138,38 @@ export default function Navbar({ user }: NavbarProps) {
           ) : (
             <NextLink
               href="/login"
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-fisip-950 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
             >
               <User className="w-3.5 h-3.5" />
-              Masuk Mahasiswa / Admin
+              Masuk Pemesan
             </NextLink>
           )}
         </div>
       </div>
 
       {/* Mobile Nav Bar */}
-      <div className="md:hidden border-t border-emerald-900 px-4 py-2 flex justify-around text-xs">
+      <div className="md:hidden border-t border-fisip-800/80 px-4 py-2 flex justify-around text-xs bg-fisip-950">
         <NextLink
           href="/"
-          className={`flex flex-col items-center gap-0.5 ${pathname === "/" ? "text-emerald-400 font-bold" : "text-emerald-200"}`}
+          className={`flex flex-col items-center gap-0.5 ${pathname === "/" ? "text-amber-400 font-bold" : "text-stone-300"}`}
         >
-          <Home className="w-4 h-4" />
-          <span>Ruangan</span>
+          <Building className="w-4 h-4" />
+          <span>Katalog</span>
         </NextLink>
         <NextLink
           href="/booking"
-          className={`flex flex-col items-center gap-0.5 ${pathname === "/booking" ? "text-emerald-400 font-bold" : "text-emerald-200"}`}
+          className={`flex flex-col items-center gap-0.5 ${pathname === "/booking" ? "text-amber-400 font-bold" : "text-stone-300"}`}
         >
           <Calendar className="w-4 h-4" />
-          <span>Pesan</span>
+          <span>Pinjam</span>
         </NextLink>
         <NextLink
           href="/ticket"
-          className={`flex flex-col items-center gap-0.5 ${pathname === "/ticket" ? "text-emerald-400 font-bold" : "text-emerald-200"}`}
+          className={`flex flex-col items-center gap-0.5 ${pathname === "/ticket" ? "text-amber-400 font-bold" : "text-stone-300"}`}
         >
           <QrCode className="w-4 h-4" />
           <span>Tiket QR</span>
         </NextLink>
-        {user?.role === "ADMIN" && (
-          <NextLink
-            href="/admin"
-            className={`flex flex-col items-center gap-0.5 ${pathname.startsWith("/admin") ? "text-emerald-400 font-bold" : "text-emerald-200"}`}
-          >
-            <Shield className="w-4 h-4" />
-            <span>Admin</span>
-          </NextLink>
-        )}
       </div>
     </header>
   );

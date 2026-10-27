@@ -96,3 +96,4 @@ Ketika ingin menghubungkan ke database cloud gratis:
    - `DATABASE_URL`: Connection string PostgreSQL dari Supabase/Neon.
    - `QR_SECRET_KEY`: String rahasia acak untuk menandatangani token QR dinamis.
 4. Klik **Deploy**!
+

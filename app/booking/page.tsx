@@ -16,7 +16,8 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
     redirect("/login");
   }
 
-  const rooms = await getRooms();
+  // Tampilkan semua ruangan (termasuk yang nonaktif) agar user dapat melihat statusnya
+  const rooms = await getRooms(true);
   const activeBooking = await getUserActiveBooking(user.id);
   
   const todayStr = new Date().toISOString().split("T")[0];
@@ -24,16 +25,16 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <div className="border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1">
+      <div className="border-b-2 border-stone-200 pb-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-fisip-800 uppercase tracking-wider mb-1">
           <Calendar className="w-4 h-4" />
-          Formulir Pemesanan Sesi
+          Formulir Peminjaman Ruang
         </div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-black text-stone-900 tracking-tight">
           Reservasi Focus Room FISIP
         </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Halo, <strong className="text-slate-800">{user.name}</strong> ({user.nim}). Silakan tentukan tanggal, ruangan, dan slot sesi.
+        <p className="text-xs text-stone-600 mt-1">
+          Penanggung Jawab: <strong className="text-stone-900">{user.name}</strong> ({user.nim}) • Lengkapi formulir di bawah ini dengan data yang valid.
         </p>
       </div>
 
@@ -42,6 +43,7 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
         initialActiveBooking={activeBooking}
         existingBookings={existingBookings}
         initialRoomId={searchParams.room}
+        currentUser={user}
       />
     </div>
   );

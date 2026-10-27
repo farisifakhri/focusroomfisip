@@ -5,7 +5,10 @@
       "nim": "ADMIN_FISIP",
       "name": "Petugas Verifikator FISIP",
       "role": "ADMIN",
-      "createdAt": "2026-10-27T03:35:52.705Z"
+      "createdAt": "2026-10-27T03:35:52.705Z",
+      "email": "verifikator.fisip@uinjkt.ac.id",
+      "phone": "081298765432",
+      "prodi": "Sekretariat Dekanat & Akademik FISIP"
     },
     {
       "id": "mhs-1",
@@ -13,37 +16,71 @@
       "name": "Ahmad Fauzi",
       "role": "MAHASISWA",
       "createdAt": "2026-10-27T03:35:52.705Z"
+    },
+    {
+      "id": "979aa4af-d7be-4ed3-8a2f-2855dee9e9df",
+      "nim": "11230910000029",
+      "name": "Muhammad Fakhri Alfarisi",
+      "role": "MAHASISWA",
+      "createdAt": "2026-10-27T03:38:16.299Z"
+    },
+    {
+      "id": "ece23df1-b8bd-4ef6-a6ce-b1bda1535503",
+      "nim": "198501152010011002",
+      "name": "Dr. Budi Santoso, M.Si",
+      "email": "budi.santoso@uinjkt.ac.id",
+      "phone": "081188990011",
+      "prodi": "Hubungan Internasional",
+      "role": "DOSEN_PEGAWAI",
+      "createdAt": "2026-10-27T03:47:19.098Z"
     }
   ],
   "rooms": [
     {
       "id": "room-1",
-      "name": "Focus Room 1 (Lt. 2)",
-      "capacity": 6,
-      "description": "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
-      "isActive": true
+      "name": "Focus Room 1 (Khusus Dosen / Rapat Besar)",
+      "capacity": 20,
+      "description": "Ruang rapat dan pertemuan skala besar, biasa digunakan oleh Dosen dan Rapat Struktural FISIP. Akses umum tertutup kecuali diaktifkan oleh Admin.",
+      "facilities": "2 Unit Komputer (PC Desktop), Port Charger Meja di setiap sisi, Whiteboard Kaca Besar, Full AC.",
+      "isActive": false
     },
     {
       "id": "room-2",
-      "name": "Focus Room 2 (Lt. 2)",
-      "capacity": 6,
-      "description": "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
+      "name": "Focus Room 2",
+      "capacity": 10,
+      "description": "Ruang diskusi kelompok menengah, riset kolaboratif, dan persiapan bimbingan.",
+      "facilities": "Port Charger Meja, Whiteboard Kaca, Full AC, Meja Konferensi.",
       "isActive": true
     },
     {
       "id": "room-3",
-      "name": "Focus Room 3 (Lt. 3)",
-      "capacity": 4,
-      "description": "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk bimbingan/diskusi intensif.",
+      "name": "Focus Room 3",
+      "capacity": 6,
+      "description": "Ruang diskusi kelompok fokus, bimbingan tugas akhir, dan riset intensif.",
+      "facilities": "Port Charger Meja, Whiteboard Kaca, Full AC.",
       "isActive": true
     },
     {
       "id": "room-4",
-      "name": "Focus Room 4 (Lt. 3)",
-      "capacity": 4,
-      "description": "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk riset & persiapan sidang.",
+      "name": "Focus Room 4",
+      "capacity": 6,
+      "description": "Ruang belajar kelompok fokus, persiapan ujian komprehensif / sidang skripsi.",
+      "facilities": "Port Charger Meja, Whiteboard Kaca, Full AC.",
       "isActive": true
     }
   ],
-  "bookings": []
+  "bookings": [
+    {
+      "id": "b3c88bde-e9a0-4676-9f11-8697080729bc",
+      "userId": "979aa4af-d7be-4ed3-8a2f-2855dee9e9df",
+      "roomId": "room-2",
+      "startTime": "2026-10-27T03:00:00.000Z",
+      "endTime": "2026-10-27T05:00:00.000Z",
+      "qrCode": "1526b35e-05dc-4e23-aa92-63edd205f740",
+      "status": "CANCELLED",
+      "notes": "Diskusi",
+      "checkedInAt": null,
+      "createdAt": "2026-10-27T03:38:29.986Z"
+    }
+  ]
 }

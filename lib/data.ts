@@ -4,13 +4,16 @@ import path from "path";
 import crypto from "crypto";
 import { verifyDynamicQRPayload } from "./qr";
 
-export type Role = "MAHASISWA" | "ADMIN";
+export type Role = "MAHASISWA" | "DOSEN_PEGAWAI" | "ADMIN";
 export type BookingStatus = "ACTIVE" | "USED" | "CANCELLED" | "EXPIRED";
 
 export interface UserRecord {
   id: string;
   nim: string;
   name: string;
+  email?: string;
+  phone?: string;
+  prodi?: string;
   role: Role;
   createdAt: string;
 }
@@ -20,6 +23,7 @@ export interface RoomRecord {
   name: string;
   capacity: number;
   description: string;
+  facilities: string;
   isActive: boolean;
 }
 
@@ -27,45 +31,56 @@ export interface BookingRecord {
   id: string;
   userId: string;
   roomId: string;
+  email: string;
+  responsibleName: string;
+  identifier: string; // NIM atau NIP
+  phone: string;
+  prodi: string;
+  userType: "MAHASISWA" | "DOSEN_PEGAWAI";
+  userCount: number;
+  purpose: string;
   startTime: string;
   endTime: string;
   qrCode: string;
   status: BookingStatus;
-  notes?: string;
   checkedInAt?: string | null;
   createdAt: string;
   user?: UserRecord;
   room?: RoomRecord;
 }
 
-// 4 Focus Rooms FISIP UIN Jakarta sesuai PRD
+// 4 Focus Rooms FISIP UIN Jakarta sesuai pembaruan spesifikasi
 export const INITIAL_ROOMS: RoomRecord[] = [
   {
     id: "room-1",
-    name: "Focus Room 1 (Lt. 2)",
-    capacity: 6,
-    description: "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
-    isActive: true,
+    name: "Focus Room 1 (Khusus Dosen / Rapat Besar)",
+    capacity: 20, // Lebih dari 15 orang
+    description: "Ruang rapat dan pertemuan skala besar, biasa digunakan oleh Dosen dan Rapat Struktural FISIP. Akses umum tertutup kecuali diaktifkan oleh Admin.",
+    facilities: "2 Unit Komputer (PC Desktop), Port Charger Meja di setiap sisi, Whiteboard Kaca Besar, Full AC.",
+    isActive: false, // DEFAULT MATI/NONAKTIF KECUALI DIAKTIFKAN ADMIN
   },
   {
     id: "room-2",
-    name: "Focus Room 2 (Lt. 2)",
-    capacity: 6,
-    description: "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
+    name: "Focus Room 2",
+    capacity: 10, // Maksimal 10 orang
+    description: "Ruang diskusi kelompok menengah, riset kolaboratif, dan persiapan bimbingan.",
+    facilities: "Port Charger Meja, Whiteboard Kaca, Full AC, Meja Konferensi.",
     isActive: true,
   },
   {
     id: "room-3",
-    name: "Focus Room 3 (Lt. 3)",
-    capacity: 4,
-    description: "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk bimbingan/diskusi intensif.",
+    name: "Focus Room 3",
+    capacity: 6, // Maksimal 6 orang
+    description: "Ruang diskusi kelompok fokus, bimbingan tugas akhir, dan riset intensif.",
+    facilities: "Port Charger Meja, Whiteboard Kaca, Full AC.",
     isActive: true,
   },
   {
     id: "room-4",
-    name: "Focus Room 4 (Lt. 3)",
-    capacity: 4,
-    description: "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk riset & persiapan sidang.",
+    name: "Focus Room 4",
+    capacity: 6, // Maksimal 6 orang
+    description: "Ruang belajar kelompok fokus, persiapan ujian komprehensif / sidang skripsi.",
+    facilities: "Port Charger Meja, Whiteboard Kaca, Full AC.",
     isActive: true,
   },
 ];
@@ -90,7 +105,10 @@ function readLocalDB(): LocalDB {
           {
             id: "admin-1",
             nim: "ADMIN_FISIP",
-            name: "Petugas Verifikator FISIP",
+            name: "Admin & Verifikator FISIP",
+            email: "admin.fisip@uinjkt.ac.id",
+            phone: "081298765432",
+            prodi: "Bagian Akademik & Kemahasiswaan FISIP",
             role: "ADMIN",
             createdAt: new Date().toISOString(),
           },
@@ -98,6 +116,9 @@ function readLocalDB(): LocalDB {
             id: "mhs-1",
             nim: "11220910000001",
             name: "Ahmad Fauzi",
+            email: "ahmad.fauzi22@mhs.uinjkt.ac.id",
+            phone: "081234567890",
+            prodi: "Ilmu Politik",
             role: "MAHASISWA",
             createdAt: new Date().toISOString(),
           },
@@ -109,7 +130,14 @@ function readLocalDB(): LocalDB {
       return initial;
     }
     const content = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+
+    // Pastikan rooms selalu sinkron dengan konfigurasi terbaru
+    if (!parsed.rooms || parsed.rooms.length === 0 || parsed.rooms[0].capacity < 15) {
+      parsed.rooms = INITIAL_ROOMS;
+      fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
+    }
+    return parsed;
   } catch (err) {
     console.error("Error reading local db file:", err);
     return { users: [], rooms: INITIAL_ROOMS, bookings: [] };
@@ -132,7 +160,6 @@ let isPrismaAvailable: boolean | null = null;
 async function checkPrisma(): Promise<boolean> {
   if (isPrismaAvailable !== null) return isPrismaAvailable;
   try {
-    // Timeout cepat 1 detik
     await Promise.race([
       prisma.$queryRaw`SELECT 1`,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1000)),
@@ -146,12 +173,24 @@ async function checkPrisma(): Promise<boolean> {
 }
 
 // User methods
-export async function getOrCreateUser(nim: string, name: string): Promise<UserRecord> {
-  const usePrisma = await checkPrisma();
-  const trimmedNim = nim.trim();
-  const trimmedName = name.trim() || `Mahasiswa ${trimmedNim}`;
+export async function getOrCreateUser(data: {
+  nim: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  prodi?: string;
+  userType?: "MAHASISWA" | "DOSEN_PEGAWAI";
+}): Promise<UserRecord> {
+  const trimmedNim = data.nim.trim();
+  const trimmedName = data.name.trim() || `Pengguna ${trimmedNim}`;
   const isAdmin = trimmedNim.toUpperCase().startsWith("ADMIN");
+  const role: Role = isAdmin
+    ? "ADMIN"
+    : data.userType === "DOSEN_PEGAWAI"
+    ? "DOSEN_PEGAWAI"
+    : "MAHASISWA";
 
+  const usePrisma = await checkPrisma();
   if (usePrisma) {
     try {
       const existing = await prisma.user.findUnique({ where: { nim: trimmedNim } });
@@ -160,6 +199,9 @@ export async function getOrCreateUser(nim: string, name: string): Promise<UserRe
           id: existing.id,
           nim: existing.nim,
           name: existing.name,
+          email: existing.email || data.email,
+          phone: existing.phone || data.phone,
+          prodi: existing.prodi || data.prodi,
           role: existing.role as Role,
           createdAt: existing.createdAt.toISOString(),
         };
@@ -168,13 +210,19 @@ export async function getOrCreateUser(nim: string, name: string): Promise<UserRe
         data: {
           nim: trimmedNim,
           name: trimmedName,
-          role: isAdmin ? "ADMIN" : "MAHASISWA",
+          email: data.email,
+          phone: data.phone,
+          prodi: data.prodi,
+          role,
         },
       });
       return {
         id: created.id,
         nim: created.nim,
         name: created.name,
+        email: created.email || undefined,
+        phone: created.phone || undefined,
+        prodi: created.prodi || undefined,
         role: created.role as Role,
         createdAt: created.createdAt.toISOString(),
       };
@@ -191,10 +239,19 @@ export async function getOrCreateUser(nim: string, name: string): Promise<UserRe
       id: crypto.randomUUID(),
       nim: trimmedNim,
       name: trimmedName,
-      role: isAdmin ? "ADMIN" : "MAHASISWA",
+      email: data.email,
+      phone: data.phone,
+      prodi: data.prodi,
+      role,
       createdAt: new Date().toISOString(),
     };
     db.users.push(user);
+    writeLocalDB(db);
+  } else {
+    // Update data profil terbaru jika ada
+    if (data.email) user.email = data.email;
+    if (data.phone) user.phone = data.phone;
+    if (data.prodi) user.prodi = data.prodi;
     writeLocalDB(db);
   }
   return user;
@@ -210,6 +267,9 @@ export async function getUserById(id: string): Promise<UserRecord | null> {
           id: u.id,
           nim: u.nim,
           name: u.name,
+          email: u.email || undefined,
+          phone: u.phone || undefined,
+          prodi: u.prodi || undefined,
           role: u.role as Role,
           createdAt: u.createdAt.toISOString(),
         };
@@ -223,17 +283,19 @@ export async function getUserById(id: string): Promise<UserRecord | null> {
 }
 
 // Room methods
-export async function getRooms(): Promise<RoomRecord[]> {
+export async function getRooms(includeInactive = false): Promise<RoomRecord[]> {
   const usePrisma = await checkPrisma();
   if (usePrisma) {
     try {
-      const rooms = await prisma.room.findMany({ where: { isActive: true } });
+      const whereClause = includeInactive ? {} : { isActive: true };
+      const rooms = await prisma.room.findMany({ where: whereClause, orderBy: { name: "asc" } });
       if (rooms.length > 0) {
         return rooms.map((r) => ({
           id: r.id,
           name: r.name,
           capacity: r.capacity,
           description: r.description || "",
+          facilities: r.facilities || "",
           isActive: r.isActive,
         }));
       }
@@ -242,7 +304,31 @@ export async function getRooms(): Promise<RoomRecord[]> {
     }
   }
   const db = readLocalDB();
-  return db.rooms.filter((r) => r.isActive);
+  return includeInactive ? db.rooms : db.rooms.filter((r) => r.isActive);
+}
+
+export async function toggleRoomActive(roomId: string, isActive: boolean): Promise<boolean> {
+  const usePrisma = await checkPrisma();
+  if (usePrisma) {
+    try {
+      await prisma.room.update({
+        where: { id: roomId },
+        data: { isActive },
+      });
+      return true;
+    } catch (e) {
+      console.warn("Prisma error in toggleRoomActive:", e);
+    }
+  }
+
+  const db = readLocalDB();
+  const room = db.rooms.find((r) => r.id === roomId);
+  if (room) {
+    room.isActive = isActive;
+    writeLocalDB(db);
+    return true;
+  }
+  return false;
 }
 
 // Booking methods
@@ -265,11 +351,18 @@ export async function getUserActiveBooking(userId: string): Promise<BookingRecor
           id: active.id,
           userId: active.userId,
           roomId: active.roomId,
+          email: active.email,
+          responsibleName: active.responsibleName,
+          identifier: active.identifier,
+          phone: active.phone,
+          prodi: active.prodi,
+          userType: active.userType as "MAHASISWA" | "DOSEN_PEGAWAI",
+          userCount: active.userCount,
+          purpose: active.purpose,
           startTime: active.startTime.toISOString(),
           endTime: active.endTime.toISOString(),
           qrCode: active.qrCode,
           status: active.status as BookingStatus,
-          notes: active.notes || undefined,
           checkedInAt: active.checkedInAt?.toISOString() || null,
           createdAt: active.createdAt.toISOString(),
           room: {
@@ -277,6 +370,7 @@ export async function getUserActiveBooking(userId: string): Promise<BookingRecor
             name: active.room.name,
             capacity: active.room.capacity,
             description: active.room.description || "",
+            facilities: active.room.facilities || "",
             isActive: active.room.isActive,
           },
           user: {
@@ -325,11 +419,18 @@ export async function getBookingsForDate(dateStr: string): Promise<BookingRecord
         id: b.id,
         userId: b.userId,
         roomId: b.roomId,
+        email: b.email,
+        responsibleName: b.responsibleName,
+        identifier: b.identifier,
+        phone: b.phone,
+        prodi: b.prodi,
+        userType: b.userType as "MAHASISWA" | "DOSEN_PEGAWAI",
+        userCount: b.userCount,
+        purpose: b.purpose,
         startTime: b.startTime.toISOString(),
         endTime: b.endTime.toISOString(),
         qrCode: b.qrCode,
         status: b.status as BookingStatus,
-        notes: b.notes || undefined,
         checkedInAt: b.checkedInAt?.toISOString() || null,
         createdAt: b.createdAt.toISOString(),
         room: {
@@ -337,6 +438,7 @@ export async function getBookingsForDate(dateStr: string): Promise<BookingRecord
           name: b.room.name,
           capacity: b.room.capacity,
           description: b.room.description || "",
+          facilities: b.room.facilities || "",
           isActive: b.room.isActive,
         },
         user: {
@@ -373,20 +475,48 @@ export async function getBookingsForDate(dateStr: string): Promise<BookingRecord
 export async function createBooking(data: {
   userId: string;
   roomId: string;
+  email: string;
+  responsibleName: string;
+  identifier: string;
+  phone: string;
+  prodi: string;
+  userType: "MAHASISWA" | "DOSEN_PEGAWAI";
+  userCount: number;
+  purpose: string;
   startTime: Date;
   endTime: Date;
-  notes?: string;
 }): Promise<{ success: boolean; booking?: BookingRecord; error?: string }> {
-  // 1. Validasi: Satu user hanya boleh memiliki 1 booking aktif pada rentang waktu yang sama
+  // 1. Cek status aktif ruangan
+  const rooms = await getRooms(true);
+  const targetRoom = rooms.find((r) => r.id === data.roomId);
+  if (!targetRoom) {
+    return { success: false, error: "Ruangan tidak ditemukan." };
+  }
+  if (!targetRoom.isActive) {
+    return {
+      success: false,
+      error: `${targetRoom.name} saat ini sedang dinonaktifkan atau dikunci khusus kegiatan Dosen/Fakultas oleh Admin.`,
+    };
+  }
+
+  // 2. Validasi kapasitas pengguna
+  if (data.userCount > targetRoom.capacity) {
+    return {
+      success: false,
+      error: `Jumlah pengguna (${data.userCount} orang) melebihi kapasitas maksimal ${targetRoom.name} (${targetRoom.capacity} orang).`,
+    };
+  }
+
+  // 3. Validasi 1 booking aktif per mahasiswa/pemesan
   const existingActive = await getUserActiveBooking(data.userId);
   if (existingActive) {
     return {
       success: false,
-      error: "Anda masih memiliki jadwal booking aktif yang belum selesai. Maksimal 1 booking aktif per mahasiswa.",
+      error: "Anda masih memiliki jadwal booking aktif yang belum selesai. Maksimal 1 reservasi aktif per penanggung jawab.",
     };
   }
 
-  // 2. Validasi: Cek apakah ruangan sudah dibooking orang lain di slot tersebut
+  // 4. Cek bentrok jadwal ruangan
   const usePrisma = await checkPrisma();
   if (usePrisma) {
     try {
@@ -410,7 +540,7 @@ export async function createBooking(data: {
       if (conflict) {
         return {
           success: false,
-          error: "Ruangan ini sudah dipesan oleh mahasiswa lain pada slot waktu tersebut. Silakan pilih ruangan atau slot lain.",
+          error: "Ruangan ini sudah dipesan oleh penanggung jawab lain pada slot waktu tersebut. Silakan pilih ruangan atau slot lain.",
         };
       }
 
@@ -419,10 +549,17 @@ export async function createBooking(data: {
         data: {
           userId: data.userId,
           roomId: data.roomId,
+          email: data.email,
+          responsibleName: data.responsibleName,
+          identifier: data.identifier,
+          phone: data.phone,
+          prodi: data.prodi,
+          userType: data.userType,
+          userCount: data.userCount,
+          purpose: data.purpose,
           startTime: data.startTime,
           endTime: data.endTime,
           qrCode: qrCodeSecret,
-          notes: data.notes || "Belajar kelompok / Diskusi",
           status: "ACTIVE",
         },
         include: { room: true, user: true },
@@ -434,11 +571,18 @@ export async function createBooking(data: {
           id: created.id,
           userId: created.userId,
           roomId: created.roomId,
+          email: created.email,
+          responsibleName: created.responsibleName,
+          identifier: created.identifier,
+          phone: created.phone,
+          prodi: created.prodi,
+          userType: created.userType as "MAHASISWA" | "DOSEN_PEGAWAI",
+          userCount: created.userCount,
+          purpose: created.purpose,
           startTime: created.startTime.toISOString(),
           endTime: created.endTime.toISOString(),
           qrCode: created.qrCode,
           status: created.status as BookingStatus,
-          notes: created.notes || undefined,
           checkedInAt: created.checkedInAt?.toISOString() || null,
           createdAt: created.createdAt.toISOString(),
           room: {
@@ -446,6 +590,7 @@ export async function createBooking(data: {
             name: created.room.name,
             capacity: created.room.capacity,
             description: created.room.description || "",
+            facilities: created.room.facilities || "",
             isActive: created.room.isActive,
           },
           user: {
@@ -475,7 +620,7 @@ export async function createBooking(data: {
   if (conflict) {
     return {
       success: false,
-      error: "Ruangan ini sudah dipesan oleh mahasiswa lain pada slot waktu tersebut. Silakan pilih ruangan atau slot lain.",
+      error: "Ruangan ini sudah dipesan oleh penanggung jawab lain pada slot waktu tersebut. Silakan pilih ruangan atau slot lain.",
     };
   }
 
@@ -483,11 +628,18 @@ export async function createBooking(data: {
     id: crypto.randomUUID(),
     userId: data.userId,
     roomId: data.roomId,
+    email: data.email,
+    responsibleName: data.responsibleName,
+    identifier: data.identifier,
+    phone: data.phone,
+    prodi: data.prodi,
+    userType: data.userType,
+    userCount: data.userCount,
+    purpose: data.purpose,
     startTime: data.startTime.toISOString(),
     endTime: data.endTime.toISOString(),
     qrCode: crypto.randomUUID(),
     status: "ACTIVE",
-    notes: data.notes || "Belajar kelompok / Diskusi",
     checkedInAt: null,
     createdAt: new Date().toISOString(),
   };
@@ -518,11 +670,18 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
           id: b.id,
           userId: b.userId,
           roomId: b.roomId,
+          email: b.email,
+          responsibleName: b.responsibleName,
+          identifier: b.identifier,
+          phone: b.phone,
+          prodi: b.prodi,
+          userType: b.userType as "MAHASISWA" | "DOSEN_PEGAWAI",
+          userCount: b.userCount,
+          purpose: b.purpose,
           startTime: b.startTime.toISOString(),
           endTime: b.endTime.toISOString(),
           qrCode: b.qrCode,
           status: b.status as BookingStatus,
-          notes: b.notes || undefined,
           checkedInAt: b.checkedInAt?.toISOString() || null,
           createdAt: b.createdAt.toISOString(),
           room: {
@@ -530,6 +689,7 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
             name: b.room.name,
             capacity: b.room.capacity,
             description: b.room.description || "",
+            facilities: b.room.facilities || "",
             isActive: b.room.isActive,
           },
           user: {
@@ -561,18 +721,17 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
   message: string;
   booking?: BookingRecord;
 }> {
-  // 1. Verifikasi payload dinamis dan signature
   const verification = verifyDynamicQRPayload(rawPayload);
   if (!verification.valid) {
     if (verification.error === "EXPIRED_QR_SCREENSHOT") {
       return {
         success: false,
-        message: "❌ KODE QR SUDAH KADALUWARSA! Terdeteksi foto/screenshot lama yang dioper. Harap minta mahasiswa menunjukkan kode QR langsung dari aplikasi secara real-time.",
+        message: "❌ KODE QR KADALUWARSA! Terdeteksi tangkapan layar (screenshot) atau foto lama yang diteruskan. Pemesan wajib membuka aplikasi dan menunjukkan QR dinamis secara langsung.",
       };
     }
     return {
       success: false,
-      message: "❌ FORMAT QR TIDAK VALID! Kode QR ini bukan kode tiket Focus Room FISIP UIN Jakarta yang sah.",
+      message: "❌ FORMAT QR TIDAK DIKENALI! Kode QR ini bukan kode resmi Focus Room FISIP UIN Jakarta.",
     };
   }
 
@@ -582,14 +741,16 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
   if (!booking) {
     return {
       success: false,
-      message: "❌ DATA BOOKING TIDAK DITEMUKAN dalam sistem.",
+      message: "❌ DATA RESERVASI TIDAK DITEMUKAN dalam pangkalan data.",
     };
   }
 
   if (booking.status === "USED") {
     return {
       success: false,
-      message: `⚠️ TIKET SUDAH PERNAH DIGUNAKAN pada ${booking.checkedInAt ? new Date(booking.checkedInAt).toLocaleTimeString("id-ID") : "sebelumnya"}.`,
+      message: `⚠️ TIKET SUDAH DIGUNAKAN pada ${
+        booking.checkedInAt ? new Date(booking.checkedInAt).toLocaleTimeString("id-ID") : "sebelumnya"
+      }.`,
       booking,
     };
   }
@@ -597,7 +758,7 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
   if (booking.status === "CANCELLED") {
     return {
       success: false,
-      message: "❌ TIKET TELAH DIBATALKAN oleh pemesan.",
+      message: "❌ TIKET TELAH DIBATALKAN oleh pemesan yang bersangkutan.",
       booking,
     };
   }
@@ -607,17 +768,19 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
   const endTime = new Date(booking.endTime);
 
   // Toleransi: Check-in dibuka 15 menit sebelum sesi mulai hingga sesi berakhir
-  const earlyCheckInTolerance = 15 * 60 * 1000; // 15 menit
-  if (now.getTime() < startTime.getTime() - earlyCheckInTolerance) {
+  const earlyTolerance = 15 * 60 * 1000;
+  if (now.getTime() < startTime.getTime() - earlyTolerance) {
     return {
       success: false,
-      message: `⏳ TERLALU CEPAT. Sesi baru dimulai pada pukul ${startTime.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}. Check-in dibuka 15 menit sebelumnya.`,
+      message: `⏳ BELUM WAKTUNYA. Sesi baru dimulai pada pukul ${startTime.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })} WIB. Presensi dibuka 15 menit sebelumnya.`,
       booking,
     };
   }
 
   if (now > endTime) {
-    // Otomatis expired jika lewat
     await updateBookingStatus(booking.id, "EXPIRED");
     return {
       success: false,
@@ -626,14 +789,14 @@ export async function verifyAndCheckInQR(rawPayload: string): Promise<{
     };
   }
 
-  // Berhasil! Check in dan ubah status jadi USED
+  // Sukses verifikasi presensi
   const checkInTime = new Date().toISOString();
   await updateBookingStatus(booking.id, "USED", checkInTime);
 
   const updatedBooking = await getBookingById(booking.id);
   return {
     success: true,
-    message: `✅ CHECK-IN BERHASIL! Selamat datang di ${booking.room?.name}. Mahasiswa: ${booking.user?.name} (${booking.user?.nim}).`,
+    message: `✅ PRESENSI TERVERIFIKASI! Akses dibuka untuk ${booking.room?.name}. Penanggung Jawab: ${booking.responsibleName} (${booking.identifier}) - ${booking.userCount} Orang.`,
     booking: updatedBooking || booking,
   };
 }
@@ -675,17 +838,24 @@ export async function getAllBookingsList(): Promise<BookingRecord[]> {
       const list = await prisma.booking.findMany({
         include: { room: true, user: true },
         orderBy: { startTime: "desc" },
-        take: 100,
+        take: 300,
       });
       return list.map((b) => ({
         id: b.id,
         userId: b.userId,
         roomId: b.roomId,
+        email: b.email,
+        responsibleName: b.responsibleName,
+        identifier: b.identifier,
+        phone: b.phone,
+        prodi: b.prodi,
+        userType: b.userType as "MAHASISWA" | "DOSEN_PEGAWAI",
+        userCount: b.userCount,
+        purpose: b.purpose,
         startTime: b.startTime.toISOString(),
         endTime: b.endTime.toISOString(),
         qrCode: b.qrCode,
         status: b.status as BookingStatus,
-        notes: b.notes || undefined,
         checkedInAt: b.checkedInAt?.toISOString() || null,
         createdAt: b.createdAt.toISOString(),
         room: {
@@ -693,6 +863,7 @@ export async function getAllBookingsList(): Promise<BookingRecord[]> {
           name: b.room.name,
           capacity: b.room.capacity,
           description: b.room.description || "",
+          facilities: b.room.facilities || "",
           isActive: b.room.isActive,
         },
         user: {

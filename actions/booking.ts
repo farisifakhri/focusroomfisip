@@ -8,6 +8,8 @@ import {
   getUserActiveBooking,
   updateBookingStatus,
   verifyAndCheckInQR,
+  toggleRoomActive,
+  getRooms,
 } from "@/lib/data";
 import { getSlotDates, TIME_SLOTS } from "@/lib/slots";
 import { revalidatePath } from "next/cache";
@@ -16,15 +18,45 @@ export async function createBookingAction(formData: {
   roomId: string;
   date: string; // YYYY-MM-DD
   slotId: string;
-  notes?: string;
+  email: string;
+  responsibleName: string;
+  identifier: string; // NIM atau NIP
+  phone: string;
+  prodi: string;
+  userType: "MAHASISWA" | "DOSEN_PEGAWAI";
+  userCount: number;
+  purpose: string;
 }) {
   const user = await getCurrentUser();
   if (!user) {
-    return { success: false, error: "Sesi login telah berakhir. Silakan login kembali." };
+    return { success: false, error: "Sesi Anda telah berakhir. Silakan isi data penanggung jawab dan masuk kembali." };
   }
 
   if (user.role === "ADMIN") {
-    return { success: false, error: "Akun admin bertugas sebagai verifikator, bukan pemesan." };
+    return { success: false, error: "Akun admin bertugas sebagai verifikator dan pengelola, bukan sebagai pemesan publik." };
+  }
+
+  // Validasi kolom-kolom wajib sesuai permintaan
+  if (!formData.email?.includes("@")) {
+    return { success: false, error: "Format alamat email tidak valid." };
+  }
+  if (!formData.responsibleName?.trim()) {
+    return { success: false, error: "Nama lengkap penanggung jawab wajib diisi." };
+  }
+  if (!formData.identifier?.trim()) {
+    return { success: false, error: "NIM / NIP penanggung jawab wajib diisi." };
+  }
+  if (!formData.phone?.trim() || formData.phone.length < 8) {
+    return { success: false, error: "Nomor WhatsApp / HP tidak valid." };
+  }
+  if (!formData.prodi?.trim()) {
+    return { success: false, error: "Program Studi / Instansi wajib diisi." };
+  }
+  if (!formData.purpose?.trim()) {
+    return { success: false, error: "Keperluan penggunaan ruangan wajib diisi." };
+  }
+  if (!formData.userCount || formData.userCount < 1) {
+    return { success: false, error: "Jumlah pengguna minimal 1 orang." };
   }
 
   const slotDates = getSlotDates(formData.date, formData.slotId);
@@ -32,7 +64,6 @@ export async function createBookingAction(formData: {
     return { success: false, error: "Slot waktu tidak valid." };
   }
 
-  // Cek agar tidak booking waktu lampau
   if (slotDates.endTime.getTime() < Date.now()) {
     return { success: false, error: "Tidak dapat memesan slot waktu yang sudah terlewat." };
   }
@@ -40,15 +71,23 @@ export async function createBookingAction(formData: {
   const res = await createBooking({
     userId: user.id,
     roomId: formData.roomId,
+    email: formData.email.trim(),
+    responsibleName: formData.responsibleName.trim(),
+    identifier: formData.identifier.trim(),
+    phone: formData.phone.trim(),
+    prodi: formData.prodi.trim(),
+    userType: formData.userType,
+    userCount: Number(formData.userCount),
+    purpose: formData.purpose.trim(),
     startTime: slotDates.startTime,
     endTime: slotDates.endTime,
-    notes: formData.notes,
   });
 
   if (res.success) {
     revalidatePath("/booking");
-    revalidatePath("/dashboard");
+    revalidatePath("/ticket");
     revalidatePath("/admin");
+    revalidatePath("/");
   }
 
   return res;
@@ -57,12 +96,12 @@ export async function createBookingAction(formData: {
 export async function cancelBookingAction(bookingId: string) {
   const user = await getCurrentUser();
   if (!user) {
-    return { success: false, error: "Silakan login kembali." };
+    return { success: false, error: "Silakan masuk kembali." };
   }
 
   const booking = await getBookingById(bookingId);
   if (!booking) {
-    return { success: false, error: "Booking tidak ditemukan." };
+    return { success: false, error: "Data booking tidak ditemukan." };
   }
 
   if (booking.userId !== user.id && user.role !== "ADMIN") {
@@ -70,12 +109,12 @@ export async function cancelBookingAction(bookingId: string) {
   }
 
   if (booking.status !== "ACTIVE") {
-    return { success: false, error: "Hanya booking aktif yang dapat dibatalkan." };
+    return { success: false, error: "Hanya booking berstatus aktif yang dapat dibatalkan." };
   }
 
   await updateBookingStatus(bookingId, "CANCELLED");
   revalidatePath("/booking");
-  revalidatePath("/dashboard");
+  revalidatePath("/ticket");
   revalidatePath("/admin");
   return { success: true };
 }
@@ -83,16 +122,43 @@ export async function cancelBookingAction(bookingId: string) {
 export async function verifyQRAction(payload: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== "ADMIN") {
-    return { success: false, message: "Akses ditolak. Hanya petugas/admin yang dapat memverifikasi QR." };
+    return { success: false, message: "Akses ditolak. Hanya petugas verifikator FISIP yang berhak memindai QR." };
   }
 
   const result = await verifyAndCheckInQR(payload);
   revalidatePath("/admin");
-  revalidatePath("/dashboard");
+  revalidatePath("/ticket");
   return result;
 }
 
-export async function getRoomSlotAvailability(dateStr: string) {
-  const bookings = await getBookingsForDate(dateStr);
-  return bookings;
+export async function adminManualCheckIn(bookingId: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") {
+    return { success: false, message: "Akses ditolak." };
+  }
+
+  const booking = await getBookingById(bookingId);
+  if (!booking) {
+    return { success: false, message: "Booking tidak ditemukan." };
+  }
+
+  await updateBookingStatus(bookingId, "USED", new Date().toISOString());
+  revalidatePath("/admin");
+  return { success: true, message: `Check-in manual berhasil untuk ${booking.responsibleName}.` };
+}
+
+export async function toggleRoomStatusAction(roomId: string, isActive: boolean) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") {
+    return { success: false, error: "Hanya admin yang dapat mengubah status ketersediaan ruangan." };
+  }
+
+  const ok = await toggleRoomActive(roomId, isActive);
+  if (ok) {
+    revalidatePath("/");
+    revalidatePath("/booking");
+    revalidatePath("/admin");
+    return { success: true };
+  }
+  return { success: false, error: "Gagal memperbarui status ruangan." };
 }

@@ -3,19 +3,20 @@
 import React, { useState } from "react";
 import DynamicQRView from "@/components/DynamicQRView";
 import { BookingRecord } from "@/lib/data";
-import { formatDateTimeIndo } from "@/lib/slots";
 import { cancelBookingAction } from "@/actions/booking";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
   Clock,
-  MapPin,
   User,
-  ShieldCheck,
   AlertTriangle,
   X,
-  Building2,
+  Building,
   CalendarX,
+  Mail,
+  Phone,
+  FileText,
+  Users,
 } from "lucide-react";
 import NextLink from "next/link";
 
@@ -31,7 +32,7 @@ export default function TicketClient({ booking }: TicketClientProps) {
   const handleCancel = async () => {
     if (!booking) return;
     const confirm = window.confirm(
-      "Apakah Anda yakin ingin membatalkan pemesanan ini? Slot ruangan akan dibuka kembali untuk mahasiswa lain."
+      "Apakah Anda yakin ingin membatalkan jadwal peminjaman ini? Ruangan akan segera dibuka kembali untuk pemesan lain."
     );
     if (!confirm) return;
 
@@ -42,7 +43,7 @@ export default function TicketClient({ booking }: TicketClientProps) {
       if (res.success) {
         router.refresh();
       } else {
-        setCancelError(res.error || "Gagal membatalkan booking.");
+        setCancelError(res.error || "Gagal membatalkan peminjaman.");
       }
     } catch (err: any) {
       setCancelError(err.message || "Terjadi kesalahan.");
@@ -53,19 +54,19 @@ export default function TicketClient({ booking }: TicketClientProps) {
 
   if (!booking) {
     return (
-      <div className="max-w-md mx-auto text-center bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-4 my-8">
-        <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+      <div className="max-w-md mx-auto text-center bg-white rounded-2xl border-2 border-stone-300 p-8 shadow-sm space-y-4 my-8">
+        <div className="w-16 h-16 bg-stone-100 text-stone-400 rounded-full flex items-center justify-center mx-auto">
           <CalendarX className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900">Tidak Ada Tiket Aktif</h2>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Anda belum memiliki reservasi Focus Room yang aktif saat ini. Silakan lakukan pemesanan terlebih dahulu.
+        <h2 className="text-xl font-bold text-stone-900">Belum Ada E-Tiket Aktif</h2>
+        <p className="text-xs text-stone-500 leading-relaxed">
+          Anda tidak memiliki jadwal reservasi Focus Room yang sedang aktif saat ini.
         </p>
         <NextLink
           href="/booking"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-fisip-800 hover:bg-fisip-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all"
         >
-          Pesan Focus Room Sekarang
+          Isi Formulir Peminjaman Sekarang
         </NextLink>
       </div>
     );
@@ -75,7 +76,7 @@ export default function TicketClient({ booking }: TicketClientProps) {
   const endDate = new Date(booking.endTime);
 
   return (
-    <div className="max-w-xl mx-auto space-y-6 pb-12">
+    <div className="max-w-2xl mx-auto space-y-6 pb-12">
       {cancelError && (
         <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -84,81 +85,118 @@ export default function TicketClient({ booking }: TicketClientProps) {
       )}
 
       {/* Ticket Boarding Pass Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-        {/* Ticket Header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 relative">
+      <div className="bg-white rounded-2xl border-2 border-stone-300 shadow-xl overflow-hidden">
+        {/* Ticket Header FISIP Maroon */}
+        <div className="bg-gradient-to-r from-fisip-950 via-fisip-900 to-fisip-800 text-white p-6 border-b-4 border-amber-500">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-emerald-400" />
-              <span className="text-xs font-extrabold tracking-wider uppercase text-emerald-300">
-                E-Tiket Presensi Focus Room
+              <Building className="w-5 h-5 text-amber-300" />
+              <span className="text-xs font-black tracking-wider uppercase text-amber-200">
+                E-Tiket Presensi Focus Room FISIP
               </span>
             </div>
             <span
               className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${
                 booking.status === "ACTIVE"
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                  ? "bg-amber-400/20 text-amber-200 border-amber-300/40"
                   : booking.status === "USED"
-                  ? "bg-blue-500/20 text-blue-300 border-blue-400/40"
-                  : "bg-red-500/20 text-red-300 border-red-400/40"
+                  ? "bg-emerald-400/20 text-emerald-200 border-emerald-300/40"
+                  : "bg-rose-400/20 text-rose-200 border-rose-300/40"
               }`}
             >
-              {booking.status}
+              {booking.status === "USED" ? "TERVERIFIKASI HADIR" : booking.status}
             </span>
           </div>
 
           <div className="mt-4">
             <h1 className="text-2xl font-black tracking-tight">{booking.room?.name}</h1>
-            <p className="text-xs text-emerald-200/80 mt-0.5">Gedung FISIP UIN Syarif Hidayatullah Jakarta</p>
+            <p className="text-xs text-stone-300 mt-0.5">
+              Gedung Fakultas Ilmu Sosial dan Ilmu Politik • UIN Syarif Hidayatullah Jakarta
+            </p>
           </div>
         </div>
 
         {/* Dynamic QR Code Section */}
-        <div className="p-6 bg-slate-50 border-b border-dashed border-slate-300 flex flex-col items-center">
+        <div className="p-6 bg-stone-50 border-b-2 border-dashed border-stone-300 flex flex-col items-center">
           <DynamicQRView bookingId={booking.id} initialStatus={booking.status} />
         </div>
 
-        {/* Ticket Details */}
+        {/* Complete Ticket Details */}
         <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-fisip-900 border-b border-stone-200 pb-2">
+            Data Rincian Peminjaman Ruang
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
-              <span className="text-slate-400 font-medium block">Nama Pemesan</span>
-              <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-emerald-600" />
-                {booking.user?.name}
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Penanggung Jawab</span>
+              <p className="font-bold text-stone-900 mt-0.5 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-fisip-700" />
+                {booking.responsibleName}
               </p>
             </div>
+
             <div>
-              <span className="text-slate-400 font-medium block">NIM UIN</span>
-              <p className="font-mono font-bold text-slate-800 mt-0.5">{booking.user?.nim}</p>
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">NIM / NIP</span>
+              <p className="font-mono font-bold text-stone-900 mt-0.5">{booking.identifier}</p>
             </div>
+
             <div>
-              <span className="text-slate-400 font-medium block">Hari & Tanggal</span>
-              <p className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Email</span>
+              <p className="font-medium text-stone-800 mt-0.5 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-stone-400" />
+                {booking.email}
+              </p>
+            </div>
+
+            <div>
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">No. WhatsApp</span>
+              <p className="font-mono font-medium text-stone-800 mt-0.5 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-stone-400" />
+                {booking.phone}
+              </p>
+            </div>
+
+            <div>
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Program Studi / Bagian</span>
+              <p className="font-semibold text-stone-800 mt-0.5">{booking.prodi}</p>
+            </div>
+
+            <div>
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Jumlah Pengguna</span>
+              <p className="font-bold text-stone-800 mt-0.5 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-fisip-700" />
+                {booking.userCount} Orang
+              </p>
+            </div>
+
+            <div>
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Hari & Tanggal</span>
+              <p className="font-semibold text-stone-800 mt-0.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-fisip-700" />
                 {startDate.toLocaleDateString("id-ID", {
-                  weekday: "short",
+                  weekday: "long",
                   day: "numeric",
-                  month: "short",
+                  month: "long",
                   year: "numeric",
                 })}
               </p>
             </div>
+
             <div>
-              <span className="text-slate-400 font-medium block">Jam Sesi</span>
-              <p className="font-mono font-bold text-emerald-800 mt-0.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-stone-400 font-semibold block uppercase text-[10px]">Jam Sesi Pemakaian</span>
+              <p className="font-mono font-bold text-fisip-800 mt-0.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-fisip-700" />
                 {startDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} -{" "}
                 {endDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
               </p>
             </div>
           </div>
 
-          {booking.notes && (
-            <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-600">
-              <span className="font-semibold text-slate-700">Keperluan:</span> {booking.notes}
-            </div>
-          )}
+          <div className="p-3 bg-stone-100 rounded-xl text-xs text-stone-700">
+            <span className="font-bold text-stone-900 block mb-0.5">Keperluan Penggunaan:</span>
+            {booking.purpose}
+          </div>
 
           {booking.status === "ACTIVE" && (
             <div className="pt-2">
@@ -166,10 +204,10 @@ export default function TicketClient({ booking }: TicketClientProps) {
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold border border-rose-200 transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl text-xs font-semibold border border-rose-300 transition-colors flex items-center justify-center gap-1.5"
               >
-                <X className="w-4 h-4" />
-                {cancelling ? "Membatalkan..." : "Batalkan Pemesanan Ini"}
+                <X className="w-4 h-4 text-rose-600" />
+                {cancelling ? "Membatalkan Jadwal..." : "Batalkan Peminjaman Ini"}
               </button>
             </div>
           )}

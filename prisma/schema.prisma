@@ -1,4 +1,4 @@
-// Prisma Schema for Focus Room FISIP UIN Jakarta
+// Prisma Schema for Focus Room FISIP UIN Syarif Hidayatullah Jakarta
 
 datasource db {
   provider = "postgresql"
@@ -7,10 +7,12 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 enum Role {
   MAHASISWA
+  DOSEN_PEGAWAI
   ADMIN
 }
 
@@ -23,8 +25,11 @@ enum BookingStatus {
 
 model User {
   id        String    @id @default(uuid())
-  nim       String    @unique
+  nim       String    @unique // NIM atau NIP
   name      String
+  email     String?
+  phone     String?
+  prodi     String?
   role      Role      @default(MAHASISWA)
   bookings  Booking[]
   createdAt DateTime  @default(now())
@@ -33,23 +38,31 @@ model User {
 model Room {
   id          String    @id @default(uuid())
   name        String    // e.g. "Focus Room 1", "Focus Room 2", etc.
-  capacity    Int       // e.g. 4-6 orang
-  description String?   // Fasilitas (AC, Smart TV, Whiteboard, Port Charger)
-  isActive    Boolean   @default(true)
+  capacity    Int       // Focus Room 1: 20 (>15), Focus Room 2: 10, Focus 3 & 4: 6
+  description String?   // Catatan & peruntukan ruangan
+  facilities  String?   // Fasilitas aktual: PC, Port Charger Meja, Whiteboard, AC
+  isActive    Boolean   @default(true) // Focus Room 1 default false kecuali diaktifkan admin
   bookings    Booking[]
 }
 
 model Booking {
-  id          String        @id @default(uuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
-  roomId      String
-  room        Room          @relation(fields: [roomId], references: [id])
-  startTime   DateTime
-  endTime     DateTime
-  qrCode      String        @unique // Secret token / base code for dynamic QR validation
-  status      BookingStatus @default(ACTIVE)
-  notes       String?       // Keperluan (Diskusi Skripsi, Riset, dll)
-  checkedInAt DateTime?     // Waktu verifikasi oleh admin
-  createdAt   DateTime      @default(now())
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  roomId          String
+  room            Room          @relation(fields: [roomId], references: [id])
+  email           String
+  responsibleName String        // Nama lengkap penanggungjawab
+  identifier      String        // NIM atau NIP
+  phone           String        // No HP / WhatsApp
+  prodi           String        // Program studi (atau Bagian/Fakultas jika Dosen/Pegawai)
+  userType        String        @default("MAHASISWA") // "MAHASISWA" atau "DOSEN_PEGAWAI"
+  userCount       Int           // Jumlah pengguna yang hadir
+  purpose         String        // Keperluan pemakaian
+  startTime       DateTime
+  endTime         DateTime
+  qrCode          String        @unique // Token rahasia dynamic QR
+  status          BookingStatus @default(ACTIVE)
+  checkedInAt     DateTime?     // Waktu verifikasi scanner
+  createdAt       DateTime      @default(now())
 }

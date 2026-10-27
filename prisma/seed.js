@@ -1,37 +1,40 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require("./generated/client");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding Focus Room FISIP UIN Jakarta database...");
+  console.log("Seeding Focus Room FISIP UIN Syarif Hidayatullah Jakarta...");
 
-  // 1. Seed Rooms
   const rooms = [
     {
       id: "room-1",
-      name: "Focus Room 1 (Lt. 2)",
-      capacity: 6,
-      description: "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
-      isActive: true,
+      name: "Focus Room 1 (Khusus Dosen / Rapat Besar)",
+      capacity: 20, // > 15 orang
+      description: "Ruang rapat dan pertemuan skala besar, biasa digunakan oleh Dosen dan Rapat Struktural FISIP. Akses umum tertutup kecuali diaktifkan oleh Admin.",
+      facilities: "2 Unit Komputer (PC Desktop), Port Charger Meja di setiap sisi, Whiteboard Kaca Besar, Full AC.",
+      isActive: false, // Default mati / nonaktif
     },
     {
       id: "room-2",
-      name: "Focus Room 2 (Lt. 2)",
-      capacity: 6,
-      description: "Kapasitas 6 orang, Smart TV 55\", Whiteboard, Full AC, High-speed Wi-Fi, Multi Power Plug.",
+      name: "Focus Room 2",
+      capacity: 10, // Maksimal 10 orang
+      description: "Ruang diskusi kelompok menengah, riset kolaboratif, dan persiapan bimbingan.",
+      facilities: "Port Charger Meja, Whiteboard Kaca, Full AC, Meja Konferensi.",
       isActive: true,
     },
     {
       id: "room-3",
-      name: "Focus Room 3 (Lt. 3)",
-      capacity: 4,
-      description: "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk bimbingan/diskusi intensif.",
+      name: "Focus Room 3",
+      capacity: 6, // Maksimal 6 orang
+      description: "Ruang diskusi kelompok fokus, bimbingan tugas akhir, dan riset intensif.",
+      facilities: "Port Charger Meja, Whiteboard Kaca, Full AC.",
       isActive: true,
     },
     {
       id: "room-4",
-      name: "Focus Room 4 (Lt. 3)",
-      capacity: 4,
-      description: "Kapasitas 4 orang, Whiteboard Kaca, Full AC, Port Charger Meja, Cocok untuk riset & persiapan sidang.",
+      name: "Focus Room 4",
+      capacity: 6, // Maksimal 6 orang
+      description: "Ruang belajar kelompok fokus, persiapan ujian komprehensif / sidang skripsi.",
+      facilities: "Port Charger Meja, Whiteboard Kaca, Full AC.",
       isActive: true,
     },
   ];
@@ -44,18 +47,21 @@ async function main() {
     });
   }
 
-  // 2. Seed Admin
+  // Seed default admin
   await prisma.user.upsert({
     where: { nim: "ADMIN_FISIP" },
     update: {},
     create: {
       nim: "ADMIN_FISIP",
-      name: "Petugas Verifikator FISIP",
+      name: "Admin & Verifikator FISIP",
+      email: "verifikator.fisip@uinjkt.ac.id",
+      phone: "081298765432",
+      prodi: "Sekretariat Dekanat FISIP",
       role: "ADMIN",
     },
   });
 
-  console.log("Seeding selesai!");
+  console.log("Seeding data FISIP selesai!");
 }
 
 main()

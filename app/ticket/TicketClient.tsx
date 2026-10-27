@@ -41,7 +41,7 @@ export default function TicketClient({ booking }: TicketClientProps) {
     try {
       const res = await cancelBookingAction(booking.id);
       if (res.success) {
-        router.refresh();
+        window.location.href = "/ticket";
       } else {
         setCancelError(res.error || "Gagal membatalkan peminjaman.");
       }

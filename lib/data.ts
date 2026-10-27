@@ -139,16 +139,6 @@ function readLocalDB(): LocalDB {
             role: "ADMIN",
             createdAt: new Date().toISOString(),
           },
-          {
-            id: "mhs-1",
-            nim: "11220910000001",
-            name: "Ahmad Fauzi",
-            email: "ahmad.fauzi22@mhs.uinjkt.ac.id",
-            phone: "081234567890",
-            prodi: "Ilmu Politik",
-            role: "MAHASISWA",
-            createdAt: new Date().toISOString(),
-          },
         ],
         rooms: INITIAL_ROOMS,
         bookings: [],
@@ -371,20 +361,35 @@ export async function toggleRoomActive(roomId: string, isActive: boolean): Promi
 }
 
 // Booking methods
-export async function getUserActiveBooking(userId: string): Promise<BookingRecord | null> {
-  const now = new Date();
+export async function getUserActiveBooking(
+  userId: string,
+  identifier?: string
+): Promise<BookingRecord | null> {
   const usePrisma = await checkPrisma();
   if (usePrisma) {
     try {
-      const active = await prisma.booking.findFirst({
+      const orConditions: any[] = [{ userId }];
+      if (identifier) orConditions.push({ identifier });
+
+      // 1. Cari booking ACTIVE terbaru untuk pengguna ini
+      let active = await prisma.booking.findFirst({
         where: {
-          userId,
+          OR: orConditions,
           status: "ACTIVE",
-          endTime: { gt: now },
         },
         include: { room: true, user: true },
-        orderBy: { startTime: "asc" },
+        orderBy: { createdAt: "desc" },
       });
+
+      // 2. Jika tidak ada ACTIVE, cari booking terbaru (misal yang baru digunakan/USED)
+      if (!active) {
+        active = await prisma.booking.findFirst({
+          where: { OR: orConditions },
+          include: { room: true, user: true },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+
       if (active) {
         return {
           id: active.id,
@@ -428,9 +433,16 @@ export async function getUserActiveBooking(userId: string): Promise<BookingRecor
 
   // Local fallback
   const db = readLocalDB();
-  const rawBooking = db.bookings.find(
-    (b) => b.userId === userId && b.status === "ACTIVE" && new Date(b.endTime) > now
-  );
+  const userBookings = db.bookings
+    .filter((b) => b.userId === userId || (identifier && b.identifier === identifier))
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || b.startTime).getTime() -
+        new Date(a.createdAt || a.startTime).getTime()
+    );
+
+  // Prioritas booking ACTIVE terbaru
+  const rawBooking = userBookings.find((b) => b.status === "ACTIVE") || userBookings[0];
   if (!rawBooking) return null;
 
   return normalizeBooking(rawBooking, db);
@@ -536,8 +548,8 @@ export async function createBooking(data: {
     };
   }
 
-  const existingActive = await getUserActiveBooking(data.userId);
-  if (existingActive) {
+  const existingActive = await getUserActiveBooking(data.userId, data.identifier);
+  if (existingActive && existingActive.status === "ACTIVE") {
     return {
       success: false,
       error: "Anda masih memiliki jadwal booking aktif yang belum selesai. Maksimal 1 reservasi aktif per penanggung jawab.",

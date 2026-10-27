@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { logoutAction } from "@/actions/auth";
 import { User, LogOut, Calendar, QrCode, Building2, ShieldCheck, MapPin, Phone, Globe } from "lucide-react";
 
 interface NavbarProps {
@@ -24,15 +25,11 @@ export default function Navbar({ user }: NavbarProps) {
   const handleLogout = async (target = "/login") => {
     try {
       setLoggingOut(true);
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push(target);
-      router.refresh();
+      await logoutAction();
     } catch (err) {
       console.error("Logout error:", err);
-      // Fallback redirect
-      window.location.href = target;
     } finally {
-      setLoggingOut(false);
+      window.location.href = target;
     }
   };
 

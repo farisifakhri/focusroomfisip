@@ -5,34 +5,10 @@
       "nim": "ADMIN_FISIP",
       "name": "Petugas Verifikator FISIP",
       "role": "ADMIN",
-      "createdAt": "2026-10-27T03:35:52.705Z",
+      "createdAt": "2026-10-27T00:00:00.000Z",
       "email": "verifikator.fisip@uinjkt.ac.id",
       "phone": "081298765432",
       "prodi": "Sekretariat Dekanat & Akademik FISIP"
-    },
-    {
-      "id": "mhs-1",
-      "nim": "11220910000001",
-      "name": "Ahmad Fauzi",
-      "role": "MAHASISWA",
-      "createdAt": "2026-10-27T03:35:52.705Z"
-    },
-    {
-      "id": "979aa4af-d7be-4ed3-8a2f-2855dee9e9df",
-      "nim": "11230910000029",
-      "name": "Muhammad Fakhri Alfarisi",
-      "role": "MAHASISWA",
-      "createdAt": "2026-10-27T03:38:16.299Z"
-    },
-    {
-      "id": "ece23df1-b8bd-4ef6-a6ce-b1bda1535503",
-      "nim": "198501152010011002",
-      "name": "Dr. Budi Santoso, M.Si",
-      "email": "budi.santoso@uinjkt.ac.id",
-      "phone": "081188990011",
-      "prodi": "Hubungan Internasional",
-      "role": "DOSEN_PEGAWAI",
-      "createdAt": "2026-10-27T03:47:19.098Z"
     }
   ],
   "rooms": [
@@ -69,25 +45,5 @@
       "isActive": true
     }
   ],
-  "bookings": [
-    {
-      "id": "b3c88bde-e9a0-4676-9f11-8697080729bc",
-      "userId": "979aa4af-d7be-4ed3-8a2f-2855dee9e9df",
-      "roomId": "room-2",
-      "responsibleName": "Muhammad Fakhri Alfarisi",
-      "identifier": "11230910000029",
-      "email": "fakhri.alfarisi@mhs.uinjkt.ac.id",
-      "phone": "081234567890",
-      "prodi": "Ilmu Politik",
-      "userType": "MAHASISWA",
-      "userCount": 4,
-      "purpose": "Diskusi Analisis Kebijakan Publik",
-      "startTime": "2026-10-27T03:00:00.000Z",
-      "endTime": "2026-10-27T05:00:00.000Z",
-      "qrCode": "1526b35e-05dc-4e23-aa92-63edd205f740",
-      "status": "CANCELLED",
-      "checkedInAt": null,
-      "createdAt": "2026-10-27T03:38:29.986Z"
-    }
-  ]
+  "bookings": []
 }

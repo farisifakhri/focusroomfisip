@@ -64,8 +64,13 @@ export async function createBookingAction(formData: {
     return { success: false, error: "Slot waktu tidak valid." };
   }
 
-  if (slotDates.endTime.getTime() < Date.now()) {
-    return { success: false, error: "Tidak dapat memesan slot waktu yang sudah terlewat." };
+  // Toleransi 15 menit jika sesi baru saja dimulai dan pengguna memesan untuk langsung digunakan
+  const toleranceMs = 15 * 60 * 1000;
+  if (slotDates.endTime.getTime() + toleranceMs < Date.now()) {
+    return {
+      success: false,
+      error: "Sesi waktu yang dipilih sudah berakhir untuk hari ini. Silakan pilih sesi berikutnya atau tentukan tanggal hari berikutnya.",
+    };
   }
 
   const res = await createBooking({

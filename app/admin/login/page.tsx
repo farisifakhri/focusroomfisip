@@ -21,26 +21,20 @@ export default function AdminLoginPage() {
     try {
       const res = await adminLogin(adminId, passcode);
       if (res.success) {
-        router.push("/admin");
-        router.refresh();
+        window.location.href = "/admin";
       } else {
         setError(res.error || "Akses ditolak. Periksa kembali ID Petugas dan Kata Sandi.");
+        setLoading(false);
       }
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan saat memverifikasi kredensial.");
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleFillDemo = () => {
-    setAdminId("ADMIN_FISIP");
-    setPasscode("admin123");
-  };
-
   return (
     <div className="min-h-[85vh] bg-stone-100 flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-stone-300 shadow-xl overflow-hidden">
+      <div className="max-w-md w-full bg-white rounded-xl border border-stone-300 shadow-xl overflow-hidden">
         {/* Header */}
         <div className="bg-fisip-950 p-8 text-white text-center border-b-4 border-fisip-700">
           <div className="w-14 h-14 bg-fisip-800 border border-fisip-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-inner">
@@ -55,7 +49,7 @@ export default function AdminLoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {error && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
@@ -74,13 +68,13 @@ export default function AdminLoginPage() {
               type="text"
               value={adminId}
               onChange={(e) => setAdminId(e.target.value)}
-              placeholder="Contoh: ADMIN_FISIP"
+              placeholder="Masukkan ID Verifikator"
               required
               autoComplete="username"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fisip-700 focus:bg-white transition-all font-mono"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fisip-700 focus:bg-white transition-all font-mono"
             />
           </div>
 
@@ -97,40 +91,30 @@ export default function AdminLoginPage() {
               type="password"
               value={passcode}
               onChange={(e) => setPasscode(e.target.value)}
-              placeholder="Masukkan sandi akses verifikator"
+              placeholder="Masukkan kata sandi resmi"
               required
               autoComplete="current-password"
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fisip-700 focus:bg-white transition-all"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fisip-700 focus:bg-white transition-all"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-fisip-800 hover:bg-fisip-900 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-fisip-800 hover:bg-fisip-900 disabled:opacity-50 text-white rounded-lg text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
           >
             {loading ? "Memverifikasi Otorisasi..." : "Masuk ke Panel Admin"}
             <ArrowRight className="w-4 h-4 text-amber-300" />
           </button>
 
-          <div className="pt-4 border-t border-stone-200 space-y-3 text-center">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-xs text-fisip-800 hover:text-fisip-900 font-semibold underline underline-offset-2"
+          <div className="pt-4 border-t border-stone-200 text-center">
+            <NextLink
+              href="/login"
+              className="text-xs text-stone-500 hover:text-stone-800 flex items-center justify-center gap-1.5 font-medium"
             >
-              Gunakan Kredensial Uji Coba Cepat (ADMIN_FISIP / admin123)
-            </button>
-
-            <div className="pt-2">
-              <NextLink
-                href="/login"
-                className="text-[11px] text-stone-500 hover:text-stone-800 flex items-center justify-center gap-1"
-              >
-                <Building className="w-3.5 h-3.5" />
-                Beralih ke Portal Mahasiswa / Dosen Pemesan
-              </NextLink>
-            </div>
+              <Building className="w-3.5 h-3.5" />
+              Beralih ke Portal Mahasiswa / Dosen Pemesan
+            </NextLink>
           </div>
         </form>
       </div>

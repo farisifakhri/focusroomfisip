@@ -29,14 +29,22 @@ interface AdminClientProps {
   allBookings: BookingRecord[];
 }
 
-export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
+export default function AdminClient({ rooms: initialRooms, allBookings: initialBookings }: AdminClientProps) {
   const router = useRouter();
+  const [rooms, setRooms] = useState<RoomRecord[]>(initialRooms);
+  const [allBookings, setAllBookings] = useState<BookingRecord[]>(initialBookings);
   const [activeTab, setActiveTab] = useState<"table" | "scanner" | "rooms">("table");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [roomFilter, setRoomFilter] = useState<string>("ALL");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Sinkronkan state jika props diperbarui dari server
+  React.useEffect(() => {
+    setRooms(initialRooms);
+    setAllBookings(initialBookings);
+  }, [initialRooms, initialBookings]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -53,11 +61,20 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
     );
     if (!confirm) return;
 
+    // Optimistic update
+    setRooms((prev) =>
+      prev.map((r) => (r.id === roomId ? { ...r, isActive: nextState } : r))
+    );
+
     const res = await toggleRoomStatusAction(roomId, nextState);
     if (res.success) {
       setActionMessage(`Status ${roomId} berhasil diperbarui menjadi ${nextState ? "AKTIF" : "NONAKTIF"}.`);
       router.refresh();
     } else {
+      // Revert if failed
+      setRooms((prev) =>
+        prev.map((r) => (r.id === roomId ? { ...r, isActive: currentActive } : r))
+      );
       alert(res.error || "Gagal memperbarui status ruangan.");
     }
   };
@@ -68,12 +85,22 @@ export default function AdminClient({ rooms, allBookings }: AdminClientProps) {
     );
     if (!confirm) return;
 
+    // Optimistic update
+    setAllBookings((prev) =>
+      prev.map((b) =>
+        b.id === bookingId
+          ? { ...b, status: "USED", checkedInAt: new Date().toISOString() }
+          : b
+      )
+    );
+
     const res = await adminManualCheckIn(bookingId);
     if (res.success) {
       setActionMessage(res.message);
       router.refresh();
     } else {
       alert(res.message);
+      router.refresh();
     }
   };
 

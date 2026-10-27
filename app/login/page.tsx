@@ -33,39 +33,20 @@ export default function LoginPage() {
       });
 
       if (res.success) {
-        router.push("/booking");
-        router.refresh();
+        window.location.href = "/booking";
       } else {
         setError(res.error || "Gagal masuk. Silakan cek kembali data Anda.");
+        setLoading(false);
       }
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan saat masuk.");
-    } finally {
       setLoading(false);
-    }
-  };
-
-  const handleQuickDemo = (type: "MHS" | "DOSEN") => {
-    if (type === "MHS") {
-      setUserType("MAHASISWA");
-      setIdentifier("11220910000001");
-      setName("Ahmad Fauzi");
-      setEmail("ahmad.fauzi@mhs.uinjkt.ac.id");
-      setPhone("081234567890");
-      setProdi("Ilmu Politik");
-    } else {
-      setUserType("DOSEN_PEGAWAI");
-      setIdentifier("198501152010011002");
-      setName("Dr. Budi Santoso, M.Si");
-      setEmail("budi.santoso@uinjkt.ac.id");
-      setPhone("081188990011");
-      setProdi("Hubungan Internasional");
     }
   };
 
   return (
     <div className="min-h-[85vh] bg-stone-100 flex items-center justify-center px-4 py-12">
-      <div className="max-w-lg w-full bg-white rounded-2xl border border-stone-300 shadow-xl overflow-hidden">
+      <div className="max-w-lg w-full bg-white rounded-xl border border-stone-300 shadow-xl overflow-hidden">
         {/* Header */}
         <div className="bg-fisip-900 p-8 text-white text-center border-b-4 border-fisip-700">
           <div className="w-14 h-14 bg-fisip-800 border border-fisip-700 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-inner">
@@ -73,7 +54,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-xl font-bold tracking-tight">Portal Pemesanan Focus Room</h1>
           <p className="text-xs text-stone-300 mt-1">
-            Fakultas Ilmu Sosial dan Ilmu Politik • UIN Syarif Hidayatullah Jakarta
+            Fakultas Ilmu Sosial dan Ilmu Politik   UIN Syarif Hidayatullah Jakarta
           </p>
         </div>
 
@@ -106,7 +87,7 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-4">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
@@ -126,11 +107,9 @@ export default function LoginPage() {
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder={userType === "MAHASISWA" ? "11220910000001" : "19850115..."}
+                placeholder={userType === "MAHASISWA" ? "Contoh: 11220910000001" : "Contoh: 19850115..."}
                 required
-                inputMode="numeric"
-                autoComplete="username"
-                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
               />
             </div>
 
@@ -147,10 +126,10 @@ export default function LoginPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nama lengkap sesuai SIAKAD"
+                placeholder="Nama lengkap penanggung jawab"
                 required
                 autoComplete="name"
-                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
               />
             </div>
           </div>
@@ -172,7 +151,7 @@ export default function LoginPage() {
                 placeholder="email@uinjkt.ac.id"
                 required
                 autoComplete="email"
-                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
               />
             </div>
 
@@ -193,7 +172,7 @@ export default function LoginPage() {
                 required
                 inputMode="tel"
                 autoComplete="tel"
-                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
               />
             </div>
           </div>
@@ -210,7 +189,7 @@ export default function LoginPage() {
               name="prodi"
               value={prodi}
               onChange={(e) => setProdi(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none font-medium text-stone-800"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none font-medium text-stone-800"
             >
               <option value="Ilmu Politik">S1 Ilmu Politik</option>
               <option value="Sosiologi">S1 Sosiologi</option>
@@ -224,40 +203,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 bg-fisip-800 hover:bg-fisip-900 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+            className="w-full mt-2 py-3.5 bg-fisip-800 hover:bg-fisip-900 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
           >
             {loading ? "Menyiapkan Sesi..." : "Lanjutkan ke Formulir Peminjaman"}
             <ArrowRight className="w-4 h-4 text-amber-300" />
           </button>
 
-          {/* Quick Demo Fill Buttons */}
-          <div className="pt-4 border-t border-stone-200">
-            <span className="text-[11px] font-semibold text-stone-400 block uppercase tracking-wider text-center mb-2">
-              Isi Data Simulasi Cepat
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("MHS")}
-                className="p-2.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl text-left transition-colors"
-              >
-                <div className="text-xs font-bold text-fisip-900">Mahasiswa FISIP</div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">Ahmad Fauzi (11220910000001)</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("DOSEN")}
-                className="p-2.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl text-left transition-colors"
-              >
-                <div className="text-xs font-bold text-fisip-900">Dosen FISIP</div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">Dr. Budi Santoso (19850115...)</div>
-              </button>
-            </div>
-          </div>
-
           {/* Separate Admin Portal Link */}
-          <div className="pt-3 text-center border-t border-stone-100">
+          <div className="pt-4 text-center border-t border-stone-200">
             <NextLink
               href="/admin/login"
               className="text-xs text-stone-500 hover:text-fisip-900 font-medium inline-flex items-center gap-1.5"

@@ -92,6 +92,12 @@ export async function adminLogin(adminId: string, secretKey: string) {
   return { success: true, user };
 }
 
+export async function logoutAction() {
+  const cookieStore = cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  return { success: true };
+}
+
 export async function logoutUser(redirectTo = "/login") {
   const cookieStore = cookies();
   cookieStore.delete(SESSION_COOKIE);

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBookingAction } from "@/actions/booking";
-import { TIME_SLOTS } from "@/lib/slots";
+import { TIME_SLOTS, TimeSlot } from "@/lib/slots";
 import { RoomRecord, BookingRecord, UserRecord } from "@/lib/data";
 import {
   Calendar,
@@ -49,7 +49,6 @@ export default function BookingClient({
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedRoomId, setSelectedRoomId] = useState<string>(defaultRoom?.id || "");
-  const [selectedSlotId, setSelectedSlotId] = useState<string>(TIME_SLOTS[0].id);
 
   // Form Fields Penanggung Jawab
   const [email, setEmail] = useState<string>(currentUser.email || "");
@@ -68,19 +67,61 @@ export default function BookingClient({
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
+  // Cek apakah slot sudah lewat untuk tanggal hari ini
+  const isSlotPast = (slotId: string, date: string) => {
+    if (date !== todayStr) return false;
+    const slot = TIME_SLOTS.find((s) => s.id === slotId);
+    if (!slot) return false;
+    const [year, month, day] = date.split("-").map(Number);
+    const endTime = new Date(year, month - 1, day, slot.endHour, slot.endMinute, 0, 0);
+    return endTime.getTime() < Date.now();
+  };
+
   // Cek ketersediaan slot waktu
-  const isSlotBooked = (slotId: string) => {
+  const isSlotBooked = (slotId: string, date: string, roomId: string) => {
     const slot = TIME_SLOTS.find((s) => s.id === slotId);
     if (!slot) return false;
 
     return existingBookings.some((b) => {
-      if (b.roomId !== selectedRoomId) return false;
+      if (b.roomId !== roomId) return false;
       const bDate = b.startTime.split("T")[0];
-      if (bDate !== selectedDate) return false;
+      if (bDate !== date) return false;
 
       const bStart = new Date(b.startTime);
       return bStart.getHours() === slot.startHour && bStart.getMinutes() === slot.startMinute;
     });
+  };
+
+  // Otomatis tentukan slot default yang tersedia dan belum lewat
+  const getFirstAvailableSlot = (date: string, roomId: string) => {
+    for (const s of TIME_SLOTS) {
+      const booked = isSlotBooked(s.id, date, roomId);
+      const past = isSlotPast(s.id, date);
+      if (!booked && !past) return s.id;
+    }
+    return TIME_SLOTS[0].id;
+  };
+
+  const [selectedSlotId, setSelectedSlotId] = useState<string>(() =>
+    getFirstAvailableSlot(todayStr, defaultRoom?.id || "")
+  );
+
+  // Jika tanggal atau ruangan berganti, sesuaikan slot otomatis jika slot saat ini tidak valid
+  const handleDateChange = (newDate: string) => {
+    setSelectedDate(newDate);
+    const currentPast = isSlotPast(selectedSlotId, newDate);
+    const currentBooked = isSlotBooked(selectedSlotId, newDate, selectedRoomId);
+    if (currentPast || currentBooked) {
+      setSelectedSlotId(getFirstAvailableSlot(newDate, selectedRoomId));
+    }
+  };
+
+  const handleRoomSelect = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    const currentBooked = isSlotBooked(selectedSlotId, selectedDate, roomId);
+    if (currentBooked) {
+      setSelectedSlotId(getFirstAvailableSlot(selectedDate, roomId));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +137,16 @@ export default function BookingClient({
       setErrorMessage(
         `Jumlah pengguna (${userCount} orang) melebihi kapasitas maksimal ${selectedRoom.name} (${selectedRoom.capacity} orang).`
       );
+      return;
+    }
+
+    if (isSlotBooked(selectedSlotId, selectedDate, selectedRoomId)) {
+      setErrorMessage("Sesi waktu yang dipilih sudah dipesan oleh pihak lain. Silakan pilih sesi lainnya.");
+      return;
+    }
+
+    if (isSlotPast(selectedSlotId, selectedDate)) {
+      setErrorMessage("Sesi waktu yang dipilih sudah terlewat untuk hari ini. Silakan pilih sesi berikutnya atau tanggal besok.");
       return;
     }
 
@@ -116,23 +167,25 @@ export default function BookingClient({
         purpose,
       });
 
-      if (res.success) {
-        router.push("/ticket");
-        router.refresh();
+      if (res.success && res.booking) {
+        // Navigasi langsung ke e-tiket dengan query parameter ID agar instan dan segar
+        window.location.href = `/ticket?id=${res.booking.id}`;
+      } else if (res.success) {
+        window.location.href = "/ticket";
       } else {
         setErrorMessage(res.error || "Gagal melakukan pemesanan.");
+        setLoading(false);
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Terjadi kesalahan saat memproses formulir.");
-    } finally {
       setLoading(false);
     }
   };
 
   // Jika user sudah memiliki booking aktif
-  if (initialActiveBooking) {
+  if (initialActiveBooking && initialActiveBooking.status === "ACTIVE") {
     return (
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl border-2 border-stone-300 p-8 shadow-sm text-center space-y-4">
+      <div className="max-w-2xl mx-auto bg-white rounded-xl border border-stone-300 p-8 shadow-sm text-center space-y-4">
         <div className="w-14 h-14 bg-fisip-100 text-fisip-800 rounded-full flex items-center justify-center mx-auto">
           <CalendarCheck className="w-8 h-8" />
         </div>
@@ -179,7 +232,7 @@ export default function BookingClient({
         <div className="pt-2">
           <button
             type="button"
-            onClick={() => router.push("/ticket")}
+            onClick={() => (window.location.href = `/ticket?id=${initialActiveBooking.id}`)}
             className="px-6 py-3 bg-fisip-800 hover:bg-fisip-900 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 mx-auto"
           >
             Buka E-Tiket & QR Dinamis Saya
@@ -196,15 +249,18 @@ export default function BookingClient({
         <div
           role="alert"
           aria-live="polite"
-          className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-start gap-2.5"
+          className="p-4 bg-rose-50 border-2 border-rose-300 rounded-xl text-rose-900 text-xs flex items-start gap-2.5 shadow-sm"
         >
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
-          <span>{errorMessage}</span>
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-700 mt-0.5" />
+          <div>
+            <strong className="block font-bold">Pemberitahuan Formulir:</strong>
+            <span>{errorMessage}</span>
+          </div>
         </div>
       )}
 
       {/* Bagian 1: Data Identitas Penanggung Jawab */}
-      <fieldset className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+      <fieldset className="bg-white p-6 rounded-xl border border-stone-300 shadow-sm space-y-4">
         <legend className="text-xs font-bold text-fisip-900 uppercase tracking-wider flex items-center gap-1.5 px-1">
           <Users className="w-4 h-4 text-fisip-800" />
           1. Data Lengkap Penanggung Jawab Peminjaman
@@ -220,11 +276,10 @@ export default function BookingClient({
               name="responsibleName"
               type="text"
               required
-              autoComplete="name"
               value={responsibleName}
               onChange={(e) => setResponsibleName(e.target.value)}
-              placeholder="Contoh: Ahmad Fauzi"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              placeholder="Nama lengkap penanggung jawab"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -237,11 +292,10 @@ export default function BookingClient({
               name="identifier"
               type="text"
               required
-              inputMode="numeric"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="Contoh: 11220910000001"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             />
           </div>
         </div>
@@ -260,7 +314,7 @@ export default function BookingClient({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@uinjkt.ac.id"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -278,7 +332,7 @@ export default function BookingClient({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="081234567890"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             />
           </div>
         </div>
@@ -293,7 +347,7 @@ export default function BookingClient({
               name="prodi"
               value={prodi}
               onChange={(e) => setProdi(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-medium text-stone-800 focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium text-stone-800 focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             >
               <option value="Ilmu Politik">S1 Ilmu Politik</option>
               <option value="Sosiologi">S1 Sosiologi</option>
@@ -317,7 +371,7 @@ export default function BookingClient({
               required
               value={userCount}
               onChange={(e) => setUserCount(Number(e.target.value))}
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-bold focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
             />
             <span className="text-[11px] text-stone-500 mt-1 block">
               Maksimal kapasitas {selectedRoom?.name}: <strong>{selectedRoom?.capacity} orang</strong>
@@ -337,13 +391,13 @@ export default function BookingClient({
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="Contoh: Bimbingan Skripsi Bab 4, Diskusi Analisis Kebijakan, atau Rapat Riset Dosen"
-            className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
+            className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-fisip-700 focus:bg-white focus:outline-none"
           />
         </div>
       </fieldset>
 
       {/* Bagian 2: Pemilihan Ruangan */}
-      <fieldset className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+      <fieldset className="bg-white p-6 rounded-xl border border-stone-300 shadow-sm space-y-4">
         <legend className="text-xs font-bold text-fisip-900 uppercase tracking-wider flex items-center gap-1.5 px-1">
           <Building className="w-4 h-4 text-fisip-800" />
           2. Pemilihan Ruang Focus Room FISIP
@@ -356,17 +410,19 @@ export default function BookingClient({
             const isRoom1 = room.id === "room-1";
 
             return (
-              <div
+              <button
+                type="button"
                 key={room.id}
                 onClick={() => {
-                  if (!isLocked) setSelectedRoomId(room.id);
+                  if (!isLocked) handleRoomSelect(room.id);
                 }}
-                className={`p-4 rounded-xl border-2 transition-all relative ${
+                disabled={isLocked}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all relative ${
                   isLocked
                     ? "bg-stone-100 border-stone-300 opacity-75 cursor-not-allowed"
                     : isSelected
-                    ? "border-fisip-800 bg-fisip-50/50 shadow-sm cursor-pointer"
-                    : "border-stone-200 hover:border-stone-300 bg-white cursor-pointer"
+                    ? "border-fisip-800 bg-fisip-50/60 shadow-sm ring-2 ring-fisip-800/20"
+                    : "border-stone-200 hover:border-stone-400 bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -408,14 +464,14 @@ export default function BookingClient({
                     *Hanya dapat diaktifkan melalui izin/akses Panel Admin FISIP.
                   </p>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </fieldset>
 
       {/* Bagian 3: Tanggal & Jam Pemakaian (Slot Sesi) */}
-      <fieldset className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+      <fieldset className="bg-white p-6 rounded-xl border border-stone-300 shadow-sm space-y-4">
         <legend className="text-xs font-bold text-fisip-900 uppercase tracking-wider flex items-center gap-1.5 px-1">
           <Clock className="w-4 h-4 text-fisip-800" />
           3. Tanggal & Jam Pemakaian ({selectedRoom?.name || "Ruangan Terpilih"})
@@ -431,9 +487,9 @@ export default function BookingClient({
             type="date"
             min={todayStr}
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
             required
-            className="px-4 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-fisip-700 focus:outline-none"
+            className="px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-fisip-700 focus:outline-none"
           />
         </div>
 
@@ -444,26 +500,32 @@ export default function BookingClient({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {TIME_SLOTS.map((slot) => {
-              const booked = isSlotBooked(slot.id);
+              const booked = isSlotBooked(slot.id, selectedDate, selectedRoomId);
+              const past = isSlotPast(slot.id, selectedDate);
+              const disabled = booked || past;
               const isSelected = selectedSlotId === slot.id;
 
               return (
                 <button
                   type="button"
                   key={slot.id}
-                  disabled={booked}
+                  disabled={disabled}
                   onClick={() => setSelectedSlotId(slot.id)}
                   className={`p-4 rounded-xl border-2 text-left transition-all relative ${
-                    booked
+                    disabled
                       ? "border-stone-200 bg-stone-100 opacity-60 cursor-not-allowed"
                       : isSelected
-                      ? "border-fisip-800 bg-fisip-50 shadow-sm"
-                      : "border-stone-200 hover:border-stone-300 bg-white"
+                      ? "border-fisip-800 bg-fisip-50 shadow-sm ring-2 ring-fisip-800/20"
+                      : "border-stone-200 hover:border-stone-400 bg-white"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs text-stone-900">{slot.name}</span>
-                    {booked ? (
+                    {past ? (
+                      <span className="text-[10px] font-bold text-stone-600 bg-stone-200 px-2 py-0.5 rounded border border-stone-300">
+                        SUDAH BERAKHIR
+                      </span>
+                    ) : booked ? (
                       <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                         SUDAH TERISI
                       </span>
@@ -483,7 +545,7 @@ export default function BookingClient({
             })}
           </div>
 
-          <div className="p-3 bg-stone-100 rounded-xl text-[11px] text-stone-600 flex items-center gap-2">
+          <div className="p-3 bg-stone-100 rounded-lg text-[11px] text-stone-600 flex items-center gap-2">
             <Info className="w-4 h-4 text-stone-500 shrink-0" />
             <span>Terdapat jeda 30 menit antar sesi untuk pembersihan dan persiapan ruangan oleh petugas.</span>
           </div>
@@ -494,7 +556,7 @@ export default function BookingClient({
       <div className="pt-2">
         <button
           type="submit"
-          disabled={loading || !selectedRoom?.isActive || isSlotBooked(selectedSlotId)}
+          disabled={loading}
           className="w-full py-4 bg-fisip-800 hover:bg-fisip-900 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2"
         >
           {loading ? "Menyimpan Data Peminjaman..." : "Konfirmasi Peminjaman & Terbitkan QR Dinamis"}

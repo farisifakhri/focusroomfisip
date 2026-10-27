@@ -60,7 +60,6 @@ export async function loginUser(data: {
 
 export async function adminLogin(adminId: string, secretKey: string) {
   const trimmedId = adminId?.trim();
-  // Validasi ID admin dan kunci sandi administrasi sederhana
   if (trimmedId !== "ADMIN_FISIP" && !trimmedId.toUpperCase().startsWith("ADMIN")) {
     return { success: false, error: "ID Petugas Administrasi tidak dikenali." };
   }
@@ -97,4 +96,16 @@ export async function logoutUser(redirectTo = "/login") {
   const cookieStore = cookies();
   cookieStore.delete(SESSION_COOKIE);
   redirect(redirectTo);
+}
+
+export async function logoutStudentAction() {
+  const cookieStore = cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  redirect("/login");
+}
+
+export async function logoutAdminAction() {
+  const cookieStore = cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  redirect("/admin/login");
 }
